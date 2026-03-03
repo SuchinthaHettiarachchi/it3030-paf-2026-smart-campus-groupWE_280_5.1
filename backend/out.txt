@@ -1,0 +1,25 @@
+
+> Task :compileJava FAILED
+C:\Users\Lenovo\Desktop\PAF project\backend\src\main\java\com\smartcampus\security\SecurityConfig.java:68: error: class, interface, enum, or record expected
+}
+^
+1 error
+
+[Incubating] Problems report is available at: file:///C:/Users/Lenovo/Desktop/PAF%20project/backend/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\Users\Lenovo\Desktop\PAF project\backend\src\main\java\com\smartcampus\security\SecurityConfig.java:68: error: class, interface, enum, or record expected
+  }
+  ^
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 1s
+1 actionable task: 1 executed
