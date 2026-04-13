@@ -32,7 +32,15 @@ function App() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
+        <p className="text-xl text-gray-600 font-medium">Loading SmartCampus...</p>
+        <p className="text-sm text-gray-400 mt-2">Please wait while we connect to the server</p>
+      </div>
+    </div>
+  );
 
   return (
     <BrowserRouter>
@@ -57,7 +65,7 @@ function App() {
                         </span>
                       )}
                     </Link>
-                    {(user.role === 'ADMIN' || user.role === 'TECHNICIAN') && (
+                    {user.role === 'ADMIN' && (
                       <Link to="/verify-qr" className="text-gray-600 hover:text-primary-600 font-medium">Verify QR</Link>
                     )}
                   </nav>
@@ -104,11 +112,11 @@ function App() {
                         
                         <button
                           onClick={() => loginAsDev('USER')}
-                          className="flex flex-col items-center gap-3 p-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                          className="flex flex-col items-center gap-3 p-6 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105"
                         >
                           <UserCircle className="w-10 h-10" />
                           <div className="text-center">
-                            <div className="font-bold text-lg">Student</div>
+                            <div className="font-bold text-lg">User</div>
                             <div className="text-xs opacity-90 mt-1">Book & view</div>
                           </div>
                         </button>

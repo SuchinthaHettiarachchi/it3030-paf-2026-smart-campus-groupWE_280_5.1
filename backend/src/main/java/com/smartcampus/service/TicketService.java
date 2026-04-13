@@ -7,6 +7,7 @@ import com.smartcampus.model.User;
 import com.smartcampus.repository.CommentRepository;
 import com.smartcampus.repository.TicketRepository;
 import com.smartcampus.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,6 +31,9 @@ public class TicketService {
 
     // A directory inside the project to save uploaded ticket images safely
     private final String UPLOAD_DIR = "uploads/tickets/";
+
+    @Value("${app.base-url:http://localhost:8080}")
+    private String baseUrl;
 
     public TicketService(TicketRepository ticketRepository, CommentRepository commentRepository, NotificationService notificationService, UserRepository userRepository) {
         this.ticketRepository = ticketRepository;
@@ -84,15 +88,22 @@ public class TicketService {
         Optional<Ticket> ticketOpt = ticketRepository.findById(ticketId);
         if (ticketOpt.isEmpty()) throw new RuntimeException("Ticket not found");
 
+        Ticket ticket = ticketOpt.get();
+        if (ticket.getImageUrls() != null && ticket.getImageUrls().size() >= 3) {
+            throw new RuntimeException("Maximum of 3 images allowed per ticket");
+        }
+
         String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
         Path filePath = Paths.get(UPLOAD_DIR + fileName);
         Files.write(filePath, file.getBytes());
 
-        // Use full URL with network IP for mobile accessibility
-        String imageUrl = "http://192.168.1.193:8080/uploads/tickets/" + fileName;
+        // Use configured base URL for accessibility
+        String imageUrl = baseUrl + "/uploads/tickets/" + fileName;
 
-        Ticket ticket = ticketOpt.get();
-        ticket.setImageUrl(imageUrl);
+        if (ticket.getImageUrls() == null) {
+            ticket.setImageUrls(new java.util.ArrayList<>());
+        }
+        ticket.getImageUrls().add(imageUrl);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticketRepository.save(ticket);
 

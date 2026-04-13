@@ -15,6 +15,9 @@ export const BookingsPage = () => {
     const [rejectionReason, setRejectionReason] = useState('');
     const [rejectingBookingId, setRejectingBookingId] = useState(null);
     const [copiedQR, setCopiedQR] = useState(null);
+    const [attendanceCounts, setAttendanceCounts] = useState({});
+    const [viewingAttendance, setViewingAttendance] = useState(null);
+    const [attendanceList, setAttendanceList] = useState([]);
 
     // For Admin and Technician, fetch all. For User, fetch my-bookings.
     const fetchBookings = async () => {
@@ -26,6 +29,20 @@ export const BookingsPage = () => {
 
             const res = await axios.get(url, { withCredentials: true });
             setBookings(res.data);
+            
+            // Fetch attendance counts for each approved booking
+            const counts = {};
+            for (const booking of res.data) {
+                if (booking.status === 'APPROVED') {
+                    try {
+                        const attendanceRes = await axios.get(`/api/bookings/${booking.id}/attendance`, { withCredentials: true });
+                        counts[booking.id] = attendanceRes.data.totalAttendees || 0;
+                    } catch (err) {
+                        counts[booking.id] = 0;
+                    }
+                }
+            }
+            setAttendanceCounts(counts);
         } catch (error) {
             console.error("Failed to fetch bookings", error);
         } finally {
@@ -35,6 +52,76 @@ export const BookingsPage = () => {
 
     useEffect(() => {
         fetchBookings();
+    }, [user.role]);
+    
+    // Separate effect for auto-refresh - fetch counts every 5 seconds
+    useEffect(() => {
+        const fetchAttendanceCountsInterval = async () => {
+            try {
+                const url = (user.role === 'ADMIN' || user.role === 'TECHNICIAN')
+                    ? '/api/bookings'
+                    : '/api/bookings/my-bookings';
+
+                console.log('🔄 Fetching bookings from:', url);
+                const res = await axios.get(url, { withCredentials: true });
+                console.log('📦 Total bookings:', res.data.length);
+                
+                const counts = {};
+                let approvedCount = 0;
+                
+                for (const booking of res.data) {
+                    if (booking.status === 'APPROVED') {
+                        approvedCount++;
+                        try {
+                            console.log(`  📊 Fetching attendance for ${booking.resourceName} (ID: ${booking.id})`);
+                            const attendanceRes = await axios.get(`/api/bookings/${booking.id}/attendance`, { withCredentials: true });
+                            const newCount = attendanceRes.data.totalAttendees || 0;
+                            counts[booking.id] = newCount;
+                            console.log(`     Result: ${newCount}/${booking.expectedAttendees}`);
+                        } catch (err) {
+                            console.error(`     ❌ Failed to fetch attendance for ${booking.id}:`, err.response?.data || err.message);
+                            counts[booking.id] = 0;
+                        }
+                    }
+                }
+                
+                console.log(`✅ Processed ${approvedCount} approved bookings`);
+                
+                setAttendanceCounts(prevCounts => {
+                    // Log changes
+                    const bookingIds = new Set([...Object.keys(prevCounts), ...Object.keys(counts)]);
+                    let changesDetected = false;
+                    bookingIds.forEach(id => {
+                        if (prevCounts[id] !== counts[id]) {
+                            const booking = res.data.find(b => b.id === id);
+                            console.log(`🔔 ATTENDANCE CHANGED for ${booking?.resourceName || id}: ${prevCounts[id] || 0} → ${counts[id]}/${booking?.expectedAttendees || '?'}`);
+                            changesDetected = true;
+                        }
+                    });
+                    if (!changesDetected) {
+                        console.log('   No changes detected');
+                    }
+                    return counts;
+                });
+            } catch (error) {
+                console.error("❌ Failed to refresh attendance counts:", error.response?.data || error.message);
+            }
+        };
+        
+        // Run immediately on mount
+        console.log('🚀 Starting attendance auto-refresh');
+        fetchAttendanceCountsInterval();
+        
+        // Set up interval for auto-refresh every 5 seconds
+        const intervalId = setInterval(() => {
+            console.log('\n⏰ Auto-refresh triggered (5s interval)');
+            fetchAttendanceCountsInterval();
+        }, 5000);
+        
+        return () => {
+            console.log('🛑 Stopping auto-refresh');
+            clearInterval(intervalId);
+        };
     }, [user.role]);
 
     useEffect(() => {
@@ -78,9 +165,55 @@ export const BookingsPage = () => {
     };
 
     const copyQRCode = (qrData, bookingId) => {
-        navigator.clipboard.writeText(qrData);
-        setCopiedQR(bookingId);
-        setTimeout(() => setCopiedQR(null), 2000);
+        // Copy the full URL, not just the token
+        const qrUrl = `${import.meta.env.VITE_NETWORK_URL || window.location.origin}/verify-qr?qrData=${encodeURIComponent(qrData)}`;
+        console.log('Copying QR URL:', qrUrl);
+        
+        // Try modern clipboard API first, fallback to textarea method
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(qrUrl)
+                .then(() => {
+                    console.log('✅ QR URL copied successfully (Clipboard API)');
+                    setCopiedQR(bookingId);
+                    setTimeout(() => setCopiedQR(null), 2000);
+                })
+                .catch(err => {
+                    console.error('❌ Clipboard API failed:', err);
+                    fallbackCopy(qrUrl, bookingId);
+                });
+        } else {
+            // Fallback for non-secure contexts (HTTP)
+            fallbackCopy(qrUrl, bookingId);
+        }
+    };
+
+    const fallbackCopy = (text, bookingId) => {
+        // Create temporary textarea
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                console.log('✅ QR URL copied successfully (fallback method)');
+                setCopiedQR(bookingId);
+                setTimeout(() => setCopiedQR(null), 2000);
+            } else {
+                console.error('❌ Fallback copy failed');
+                alert('Failed to copy. Please copy manually from the box above.');
+            }
+        } catch (err) {
+            console.error('❌ Fallback copy error:', err);
+            alert('Failed to copy. Please copy manually from the box above.');
+        } finally {
+            document.body.removeChild(textArea);
+        }
     };
 
     const handleDeleteBooking = async (bookingId) => {
@@ -92,6 +225,16 @@ export const BookingsPage = () => {
             fetchBookings();
         } catch (error) {
             alert(error.response?.data?.error || 'Failed to delete booking');
+        }
+    };
+    
+    const viewAttendance = async (bookingId) => {
+        try {
+            const res = await axios.get(`/api/bookings/${bookingId}/attendance`, { withCredentials: true });
+            setAttendanceList(res.data.attendanceList || []);
+            setViewingAttendance(res.data);
+        } catch (error) {
+            alert('Failed to fetch attendance data');
         }
     };
 
@@ -123,8 +266,8 @@ export const BookingsPage = () => {
                 )}
             </div>
 
-            {/* QR Verification Info Banner for Admin/Technician */}
-            {(user.role === 'ADMIN' || user.role === 'TECHNICIAN') && (
+            {/* QR Verification Info Banner for Admin only */}
+            {user.role === 'ADMIN' && (
                 <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 rounded-lg">
                     <div className="flex items-start gap-3">
                         <div className="bg-purple-500 rounded-full p-2 flex-shrink-0">
@@ -193,9 +336,30 @@ export const BookingsPage = () => {
                                     </span>
                                 </div>
                                 {booking.expectedAttendees && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <Users className="w-4 h-4" />
-                                        <span>{booking.expectedAttendees} attendees</span>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2 text-gray-600">
+                                            <Users className="w-4 h-4" />
+                                            <span>
+                                                {booking.status === 'APPROVED' && attendanceCounts[booking.id] !== undefined ? (
+                                                    <>
+                                                        <span className="font-bold text-blue-600">{attendanceCounts[booking.id]}</span>
+                                                        <span className="text-gray-400"> / </span>
+                                                        <span>{booking.expectedAttendees}</span>
+                                                        <span className="text-gray-500"> checked in</span>
+                                                    </>
+                                                ) : (
+                                                    <span>{booking.expectedAttendees} attendees</span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        {booking.status === 'APPROVED' && attendanceCounts[booking.id] > 0 && (
+                                            <button
+                                                onClick={() => viewAttendance(booking.id)}
+                                                className="text-xs text-blue-600 hover:text-blue-700 font-medium underline"
+                                            >
+                                                View List
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                                 <p className="text-sm text-gray-600 mt-2 line-clamp-2">
@@ -262,16 +426,22 @@ export const BookingsPage = () => {
                                         <span className="text-xs text-gray-600 mb-2 uppercase font-bold tracking-wide">Verification QR Code</span>
                                         <div className="bg-white p-3 rounded-lg shadow-md">
                                             <QRCodeSVG 
-                                                value={`${window.location.origin}/verify-qr?qr=${encodeURIComponent(booking.qrValidationData)}`}
+                                                value={`${import.meta.env.VITE_NETWORK_URL || window.location.origin}/verify-qr?qrData=${encodeURIComponent(booking.qrValidationData)}`}
                                                 size={120} 
                                                 level="M" 
                                             />
                                         </div>
                                         <div className="mt-3 w-full">
                                             <p className="text-xs text-blue-600 mb-2 font-semibold text-center">📱 Scan with your phone to check in</p>
-                                            <p className="text-xs text-gray-500 mb-1 font-semibold">QR Code URL:</p>
+                                            <p className="text-xs text-gray-500 mb-1 font-semibold">For mobile access, open:</p>
                                             <div className="bg-white px-3 py-2 rounded border border-gray-300 text-xs text-gray-700 break-all mb-2">
-                                                {`${window.location.origin}/verify-qr?qr=${encodeURIComponent(booking.qrValidationData)}`}
+                                                {(() => {
+                                                    const hostname = window.location.hostname;
+                                                    const port = window.location.port;
+                                                    return hostname === 'localhost' || hostname === '127.0.0.1'
+                                                        ? `http://[YOUR_COMPUTER_IP]:${port}/verify-qr?qrData=${booking.qrValidationData}`
+                                                        : `${window.location.origin}/verify-qr?qrData=${encodeURIComponent(booking.qrValidationData)}`;
+                                                })()}
                                             </div>
                                             <p className="text-xs text-gray-400 italic text-center">Check-in opens 15 min before booking time</p>
                                             <button
@@ -342,6 +512,76 @@ export const BookingsPage = () => {
 
             {isFormOpen && (
                 <BookingForm onClose={() => { setIsFormOpen(false); fetchBookings(); }} />
+            )}
+            
+            {/* Attendance List Modal */}
+            {viewingAttendance && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-100">
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-xl font-bold text-gray-800">Attendance List</h3>
+                                <button
+                                    onClick={() => setViewingAttendance(null)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <XIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <p className="text-sm text-gray-600">{viewingAttendance.booking?.resourceName}</p>
+                            <div className="mt-3 flex items-center gap-3 text-sm">
+                                <Users className="w-5 h-5 text-blue-600" />
+                                <span className="font-bold text-blue-600 text-lg">
+                                    {viewingAttendance.totalAttendees} / {viewingAttendance.expectedAttendees}
+                                </span>
+                                <span className="text-gray-600">students checked in</span>
+                            </div>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1">
+                            {attendanceList.length === 0 ? (
+                                <p className="text-center text-gray-500 py-8">No students have checked in yet.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {attendanceList.map((attendance, index) => (
+                                        <div key={attendance.id} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-gray-800">{attendance.userName}</p>
+                                                {attendance.studentId && (
+                                                    <p className="text-xs text-blue-600 font-medium">🆔 {attendance.studentId}</p>
+                                                )}
+                                                {attendance.userEmail && (
+                                                    <p className="text-xs text-gray-500">📧 {attendance.userEmail}</p>
+                                                )}
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-gray-500">Checked in at</p>
+                                                <p className="text-sm font-medium text-gray-700">
+                                                    {new Date(attendance.checkedInAt).toLocaleTimeString([], { 
+                                                        hour: '2-digit', 
+                                                        minute: '2-digit' 
+                                                    })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="p-6 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={() => setViewingAttendance(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

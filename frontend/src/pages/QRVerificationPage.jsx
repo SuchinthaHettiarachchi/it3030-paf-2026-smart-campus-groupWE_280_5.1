@@ -1,36 +1,112 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from '../api/axios';
-import { QrCode, CheckCircle2, XCircle, Scan, AlertTriangle, Lock } from 'lucide-react';
+import { QrCode, CheckCircle2, XCircle, Scan, AlertTriangle, Lock, Users } from 'lucide-react';
 
 export const QRVerificationPage = () => {
     const [searchParams] = useSearchParams();
     const [qrData, setQrData] = useState('');
     const [verificationResult, setVerificationResult] = useState(null);
     const [loading, setLoading] = useState(false);
+    
+    // User identification for multi-student check-in
+    const [userName, setUserName] = useState('');
+    const [userEmail, setUserEmail] = useState('');
+    const [studentId, setStudentId] = useState('');
+    const [showUserForm, setShowUserForm] = useState(false);
 
     // Auto-verify if QR code is in URL parameter
     useEffect(() => {
-        const qrParam = searchParams.get('qr');
+        let qrParam = searchParams.get('qrData');
         if (qrParam && !verificationResult) {
+            // If qrParam is a full URL (contains http), extract just the token
+            if (qrParam.includes('http')) {
+                // Extract token from URL like: http://...verify-qr?qrData=TOKEN
+                const match = qrParam.match(/qrData=([^&]+)/);
+                if (match && match[1]) {
+                    qrParam = decodeURIComponent(match[1]);
+                    console.log('Extracted token from URL:', qrParam);
+                }
+            }
+            qrParam = qrParam.trim(); // Remove any whitespace
+            console.log('QR Data from URL:', qrParam);
             setQrData(qrParam);
-            verifyQRCode(qrParam);
+            // Show user form for multi-student check-ins
+            setShowUserForm(true);
         }
-    }, [searchParams]);
+    }, [searchParams, verificationResult]);
 
-    const verifyQRCode = async (dataToVerify) => {
-        const qrValue = dataToVerify || qrData;
+    const verifyQRCode = async (dataToVerify, withUserInfo = false) => {
+        let qrValue = dataToVerify || qrData;
         if (!qrValue.trim()) return;
+
+        // Clean the QR value - extract just the token if it's a full URL
+        qrValue = qrValue.trim(); // Remove whitespace
+        
+        if (qrValue.includes('http') || qrValue.includes('verify-qr')) {
+            const match = qrValue.match(/qrData=([^&]+)/);
+            if (match && match[1]) {
+                qrValue = decodeURIComponent(match[1]);
+                console.log('Cleaned QR token:', qrValue);
+            }
+        }
+        
+        // Additional cleanup - remove any remaining URL encoding artifacts
+        qrValue = qrValue.trim();
 
         setLoading(true);
         try {
-            const res = await axios.get(`/api/bookings/verify-qr?qrData=${encodeURIComponent(qrValue)}`);
+            console.log('Verifying QR code:', qrValue);
+            
+            // Build query parameters
+            let url = `/api/bookings/verify-qr?qrData=${encodeURIComponent(qrValue)}`;
+            
+            // Add user info if provided (for multi-student check-in)
+            if (withUserInfo && userName.trim()) {
+                // Validate that Student ID is provided for multi-student check-ins
+                if (!studentId.trim() && !userEmail.trim()) {
+                    alert('⚠️ Student ID or Email is required to prevent duplicate check-ins');
+                    setLoading(false);
+                    return;
+                }
+                
+                // Create a consistent userId: prefer studentId, then email
+                let userId;
+                if (studentId.trim()) {
+                    userId = studentId.trim().toUpperCase(); // Normalize student IDs to uppercase
+                } else if (userEmail.trim()) {
+                    userId = userEmail.trim().toLowerCase();
+                } else {
+                    // This should never happen due to validation above
+                    userId = userName.trim().toLowerCase().replace(/\s+/g, '-');
+                }
+                
+                url += `&userId=${encodeURIComponent(userId)}`;
+                url += `&userName=${encodeURIComponent(userName.trim())}`;
+                if (userEmail.trim()) {
+                    url += `&userEmail=${encodeURIComponent(userEmail.trim())}`;
+                }
+                if (studentId.trim()) {
+                    url += `&studentId=${encodeURIComponent(studentId.trim().toUpperCase())}`;
+                }
+                
+                console.log('🎫 Check-in attempt:');
+                console.log('   Name:', userName.trim());
+                console.log('   Student ID:', studentId.trim() || '(none)');
+                console.log('   Unique ID:', userId);
+                console.log('   Email:', userEmail.trim() || '(none)');
+                console.log('   URL:', url);
+            }
+            
+            const res = await axios.get(url);
+            console.log('✅ Check-in SUCCESS:', res.data);
             
             // Success - valid booking with check-in
             setVerificationResult({
                 type: 'SUCCESS',
                 data: res.data
             });
+            setShowUserForm(false);
         } catch (error) {
             const errorData = error.response?.data;
             const errorType = errorData?.error;
@@ -45,7 +121,9 @@ export const QRVerificationPage = () => {
                     type: 'ALREADY_CHECKED_IN',
                     message: errorData.message,
                     checkedInAt: errorData.checkedInAt,
-                    booking: errorData.booking
+                    booking: errorData.booking,
+                    totalAttendees: errorData.totalAttendees,
+                    expectedAttendees: errorData.expectedAttendees
                 });
             } else if (errorType === 'NOT_ALLOWED') {
                 setVerificationResult({
@@ -77,12 +155,29 @@ export const QRVerificationPage = () => {
 
     const handleVerify = async (e) => {
         e.preventDefault();
-        verifyQRCode();
+        
+        // Show user form before verifying if userName is empty
+        if (!userName.trim() && !verificationResult) {
+            setShowUserForm(true);
+            return;
+        }
+        
+        verifyQRCode(null, true);
+    };
+    
+    const handleQuickVerify = (e) => {
+        e.preventDefault();
+        // Quick verify without user info (for equipment bookings)
+        verifyQRCode(null, false);
     };
 
     const resetForm = () => {
         setQrData('');
         setVerificationResult(null);
+        setUserName('');
+        setUserEmail('');
+        setStudentId('');
+        setShowUserForm(false);
     };
 
     const renderResult = () => {
@@ -92,17 +187,37 @@ export const QRVerificationPage = () => {
             case 'SUCCESS':
                 const booking = verificationResult.data.booking;
                 const checkedInAt = verificationResult.data.checkedInAt;
+                const attendanceMode = verificationResult.data.attendanceMode;
+                const totalAttendees = verificationResult.data.totalAttendees;
+                const expectedAttendees = verificationResult.data.expectedAttendees;
+                
                 return (
                     <div className="text-center">
                         <div className="w-28 h-28 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-in zoom-in-95 duration-300">
                             <CheckCircle2 className="w-20 h-20 text-green-600" />
                         </div>
                         <h2 className="text-3xl font-bold text-green-600 mb-2">✅ Check-in Successful</h2>
-                        <p className="text-lg text-gray-600 mb-8">Access granted for this booking</p>
+                        <p className="text-lg text-gray-600 mb-4">Access granted for this booking</p>
+                        
+                        {/* Show attendance count for multi-student check-ins */}
+                        {attendanceMode === 'MULTI_STUDENT' && (
+                            <div className="mb-6 inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-full">
+                                <Users className="w-6 h-6 text-blue-600" />
+                                <span className="text-xl font-bold text-gray-800">
+                                    {totalAttendees} / {expectedAttendees} Students Checked In
+                                </span>
+                            </div>
+                        )}
 
                         <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-6 text-left max-w-lg mx-auto border-2 border-green-200 shadow-lg">
                             <h3 className="font-bold text-xl text-gray-800 mb-4 pb-3 border-b border-green-200">Booking Details</h3>
                             <div className="space-y-4">
+                                {userName && (
+                                    <div>
+                                        <span className="text-sm font-medium text-gray-500">Checked in as:</span>
+                                        <p className="font-bold text-lg text-green-600">{userName}</p>
+                                    </div>
+                                )}
                                 <div>
                                     <span className="text-sm font-medium text-gray-500">QR Code:</span>
                                     <p className="font-bold text-lg text-blue-600 font-mono break-all">{booking.qrValidationData}</p>
@@ -155,38 +270,99 @@ export const QRVerificationPage = () => {
                                 </p>
                             </div>
                         </div>
+                        
+                        {/* Check in another student button for multi-student mode */}
+                        {attendanceMode === 'MULTI_STUDENT' && totalAttendees < expectedAttendees && (
+                            <button
+                                onClick={() => {
+                                    // Clear user info but keep QR data
+                                    setUserName('');
+                                    setUserEmail('');
+                                    setStudentId('');
+                                    setVerificationResult(null);
+                                    setShowUserForm(true);
+                                }}
+                                className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 mx-auto"
+                            >
+                                <Users className="w-5 h-5" />
+                                Check in Another Student
+                            </button>
+                        )}
                     </div>
                 );
 
             case 'ALREADY_CHECKED_IN':
+                const alreadyTotalAttendees = verificationResult.totalAttendees;
+                const alreadyExpectedAttendees = verificationResult.expectedAttendees;
+                const existingStudentId = verificationResult.studentId;
+                const existingName = verificationResult.existingName;
+                
                 return (
                     <div className="text-center">
-                        <div className="w-28 h-28 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-in zoom-in-95 duration-300">
-                            <AlertTriangle className="w-20 h-20 text-yellow-600" />
+                        <div className="w-28 h-28 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-in zoom-in-95 duration-300">
+                            <AlertTriangle className="w-20 h-20 text-red-600" />
                         </div>
-                        <h2 className="text-3xl font-bold text-yellow-600 mb-2">⚠️ Already Checked In</h2>
-                        <p className="text-lg text-gray-600 mb-8">This booking has already been verified</p>
-
-                        <div className="bg-yellow-50 rounded-xl p-6 text-center max-w-md mx-auto border-2 border-yellow-200">
-                            <div className="mb-4">
-                                <span className="text-sm font-medium text-gray-600">QR Code:</span>
-                                <p className="font-bold text-lg text-blue-600 font-mono break-all">{verificationResult.booking?.qrValidationData || qrData}</p>
-                            </div>
-                            <div className="mb-4">
-                                <span className="text-sm font-medium text-gray-600">Checked-in at:</span>
-                                <p className="font-bold text-3xl text-yellow-700 mt-2">
-                                    {new Date(verificationResult.checkedInAt).toLocaleTimeString('en-US', {
-                                        hour: 'numeric', minute: '2-digit', hour12: true
-                                    })}
-                                </p>
-                            </div>
-                            <div>
-                                <span className="text-sm font-medium text-gray-600">Status:</span>
-                                <p className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-full text-sm font-bold ml-2 mt-2">
-                                    CHECKED_IN
-                                </p>
-                            </div>
+                        <h2 className="text-3xl font-bold text-red-600 mb-2">⚠️ Duplicate Check-In Blocked</h2>
+                        
+                        {/* Enhanced error message */}
+                        <div className="bg-red-50 rounded-xl p-6 text-center max-w-lg mx-auto border-2 border-red-300 mb-6">
+                            <p className="text-lg font-semibold text-red-800 mb-3">
+                                {verificationResult.message}
+                            </p>
+                            
+                            {(existingStudentId || existingName) && (
+                                <div className="mt-4 pt-4 border-t border-red-300">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Already Checked In As:</p>
+                                    {existingName && (
+                                        <p className="font-bold text-lg text-gray-900">👤 {existingName}</p>
+                                    )}
+                                    {existingStudentId && (
+                                        <p className="font-bold text-md text-blue-700 mt-1">🆔 Student ID: {existingStudentId}</p>
+                                    )}
+                                    <p className="text-xs text-gray-600 mt-2">
+                                        at {new Date(verificationResult.checkedInAt).toLocaleTimeString('en-US', {
+                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                        })}
+                                    </p>
+                                </div>
+                            )}
                         </div>
+                        
+                        {/* Show attendance count if available */}
+                        {alreadyTotalAttendees !== undefined && (
+                            <div className="mb-6 inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-full">
+                                <Users className="w-6 h-6 text-yellow-600" />
+                                <span className="text-xl font-bold text-gray-800">
+                                    {alreadyTotalAttendees} / {alreadyExpectedAttendees} Students Checked In
+                                </span>
+                            </div>
+                        )}
+                        
+                        {/* Info box */}
+                        <div className="bg-blue-50 rounded-xl p-4 text-left max-w-md mx-auto border border-blue-200 mt-4">
+                            <p className="text-sm text-blue-800 flex items-start gap-2">
+                                <span className="text-lg">ℹ️</span>
+                                <span>Each Student ID can only be used once per session to ensure accurate attendance tracking.</span>
+                            </p>
+                        </div>
+                        
+                        {/* Try another student button */}
+                        {alreadyTotalAttendees !== undefined && alreadyTotalAttendees < alreadyExpectedAttendees && (
+                            <button
+                                onClick={() => {
+                                    // Clear user info but keep QR data
+                                    setUserName('');
+                                    setUserEmail('');
+                                    setStudentId('');
+                                    setVerificationResult(null);
+                                    setShowUserForm(true);
+                                }}
+                                className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 mx-auto"
+                            >
+                                <Users className="w-5 h-5" />
+                                Check in Different Student
+                            </button>
+                        )}
                     </div>
                 );
 
@@ -265,8 +441,12 @@ export const QRVerificationPage = () => {
                         <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mb-4">
                             <QrCode className="w-12 h-12 text-primary-600" />
                         </div>
-                        <h2 className="text-xl font-bold text-gray-800 mb-2">Enter QR Code Data</h2>
-                        <p className="text-sm text-gray-500">Paste the QR code content below to verify</p>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">
+                            {showUserForm ? 'Student Check-In' : 'Enter QR Code Data'}
+                        </h2>
+                        <p className="text-sm text-gray-500">
+                            {showUserForm ? 'Please enter your details to check in' : 'Paste the QR code content below to verify'}
+                        </p>
                     </div>
 
                     <form onSubmit={handleVerify} className="max-w-md mx-auto space-y-4">
@@ -278,20 +458,103 @@ export const QRVerificationPage = () => {
                                 value={qrData}
                                 onChange={e => setQrData(e.target.value)}
                                 placeholder="Paste QR code data here..."
-                                rows="4"
+                                rows="3"
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none font-mono text-sm"
                                 required
+                                disabled={showUserForm}
                             ></textarea>
+                            {qrData && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Length: {qrData.length} characters
+                                </p>
+                            )}
                         </div>
+                        
+                        {showUserForm && (
+                            <>
+                                <div className="border-t border-gray-200 pt-4">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                        <p className="text-sm font-medium text-blue-800 mb-1">
+                                            🔒 Unique Identifier Required
+                                        </p>
+                                        <p className="text-xs text-blue-600">
+                                            Student ID or Email is required to prevent duplicate check-ins
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Full Name <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={userName}
+                                        onChange={e => setUserName(e.target.value)}
+                                        placeholder="e.g., John Doe"
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                        required
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Student ID <span className="text-red-500">* (Required)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={studentId}
+                                        onChange={e => setStudentId(e.target.value)}
+                                        placeholder="e.g., 2024001234"
+                                        className="w-full p-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
+                                        required={!userEmail.trim()}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Or provide Email below</p>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Email <span className="text-gray-400">(Alternative to Student ID)</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={userEmail}
+                                        onChange={e => setUserEmail(e.target.value)}
+                                        placeholder="e.g., john.doe@university.edu"
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                    />
+                                </div>
+                            </>
+                        )}
 
-                        <button
-                            type="submit"
-                            disabled={loading || !qrData.trim()}
-                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition disabled:opacity-50"
-                        >
-                            <Scan className="w-5 h-5" />
-                            {loading ? 'Verifying...' : 'Verify QR Code'}
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                type="submit"
+                                disabled={loading || !qrData.trim() || (showUserForm && !userName.trim())}
+                                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition disabled:opacity-50"
+                            >
+                                <Scan className="w-5 h-5" />
+                                {loading ? 'Verifying...' : showUserForm ? 'Check In' : 'Next'}
+                            </button>
+                            
+                            {!showUserForm && qrData.trim() && (
+                                <button
+                                    type="button"
+                                    onClick={handleQuickVerify}
+                                    disabled={loading}
+                                    className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition disabled:opacity-50 text-sm"
+                                    title="For equipment bookings (single check-in)"
+                                >
+                                    Quick
+                                </button>
+                            )}
+                        </div>
+                        
+                        {!showUserForm && (
+                            <p className="text-xs text-center text-gray-500 mt-2">
+                                💡 Click "Next" for student check-in or "Quick" for equipment
+                            </p>
+                        )}
                     </form>
                 </div>
             ) : (

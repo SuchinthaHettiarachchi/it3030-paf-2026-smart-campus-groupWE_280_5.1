@@ -1,6 +1,5 @@
 package com.smartcampus.security;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -14,7 +13,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -23,9 +21,6 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final DevBypassFilter devBypassFilter;
-    
-    @Value("${FRONTEND_URL:http://localhost:5173}")
-    private String frontendUrl;
 
     public SecurityConfig(CustomOAuth2UserService customOAuth2UserService, DevBypassFilter devBypassFilter) {
         this.customOAuth2UserService = customOAuth2UserService;
@@ -53,7 +48,7 @@ public class SecurityConfig {
             )
             .oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                .defaultSuccessUrl(frontendUrl + "/select-role", true)
+                .defaultSuccessUrl("http://172.28.15.11:5173/select-role", true)
             );
             
         return http.build();
@@ -62,22 +57,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Build allowed origins list dynamically
-        List<String> allowedOrigins = new ArrayList<>();
-        allowedOrigins.add("http://localhost:5173");          // Local development
-        allowedOrigins.add("http://127.0.0.1:5173");         // Alternative localhost
-        allowedOrigins.add("http://192.168.1.193:5173");     // Network access
-        
-        // Add production frontend URL if set
-        if (frontendUrl != null && !frontendUrl.equals("http://localhost:5173")) {
-            allowedOrigins.add(frontendUrl);
-        }
-        
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:5173",              // Vite dev server on localhost
+            "http://127.0.0.1:5173",             // Alternative localhost
+            "http://172.28.15.11:5173"          // Vite dev server on network (for mobile access)
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(true); // Required for session/cookies
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

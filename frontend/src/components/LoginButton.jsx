@@ -65,11 +65,11 @@ export const LoginButton = () => {
                 </button>
                 <button
                     onClick={() => loginAsDev('USER')}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
-                    title="Dev Mode: Login as Student"
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm"
+                    title="Dev Mode: Login as User"
                 >
                     <LogIn className="w-4 h-4" />
-                    Student
+                    User
                 </button>
                 <button
                     onClick={() => loginAsDev('TECHNICIAN')}

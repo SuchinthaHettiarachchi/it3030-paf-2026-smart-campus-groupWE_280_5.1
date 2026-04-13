@@ -21,10 +21,10 @@ const RoleSelectionPage = () => {
     },
     {
       id: 'USER',
-      name: 'Student',
+      name: 'User',
       description: 'Book resources and raise tickets',
       icon: UserCircle,
-      color: 'blue'
+      color: 'green'
     },
     {
       id: 'TECHNICIAN',

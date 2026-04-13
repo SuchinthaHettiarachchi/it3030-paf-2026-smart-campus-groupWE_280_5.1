@@ -89,7 +89,10 @@ public class TicketController {
             @RequestParam("description") String description,
             @RequestParam(value = "resourceName", required = false, defaultValue = "") String resourceName,
             @RequestParam(value = "resourceId", required = false, defaultValue = "") String resourceId,
-            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "priority", required = false) String priority,
+            @RequestParam(value = "preferredContact", required = false) String preferredContact,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
             @AuthenticationPrincipal OAuth2User principal) {
         
         System.out.println("===== CREATE TICKET REQUEST =====");
@@ -97,7 +100,10 @@ public class TicketController {
         System.out.println("Description: " + description);
         System.out.println("ResourceName: " + resourceName);
         System.out.println("ResourceId: " + resourceId);
-        System.out.println("Image: " + (image != null ? image.getOriginalFilename() : "none"));
+        System.out.println("Category: " + category);
+        System.out.println("Priority: " + priority);
+        System.out.println("PreferredContact: " + preferredContact);
+        System.out.println("Images: " + (images != null ? images.size() + " file(s)" : "none"));
         
         User user = getAuthenticatedUser(principal);
         if (user == null) {
@@ -113,21 +119,30 @@ public class TicketController {
             ticket.setDescription(description);
             ticket.setResourceName(resourceName != null && !resourceName.isEmpty() ? resourceName : null);
             ticket.setResourceId(resourceId != null && !resourceId.isEmpty() ? resourceId : null);
+            ticket.setCategory(category);
+            ticket.setPriority(priority);
+            ticket.setPreferredContact(preferredContact);
             ticket.setCreatorId(user.getId());
             ticket.setCreatorName(user.getName());
 
             Ticket created = ticketService.createTicket(ticket);
             System.out.println("Ticket created with ID: " + created.getId());
             
-            // Upload image if provided
-            if (image != null && !image.isEmpty()) {
-                try {
-                    String imageUrl = ticketService.uploadTicketImage(created.getId(), image);
-                    created.setImageUrl(imageUrl);
-                    System.out.println("Image uploaded: " + imageUrl);
-                } catch (Exception e) {
-                    System.err.println("Failed to upload image: " + e.getMessage());
-                    e.printStackTrace();
+            // Upload images if provided (max 3)
+            if (images != null && !images.isEmpty()) {
+                int uploaded = 0;
+                for (MultipartFile image : images) {
+                    if (uploaded >= 3) break;
+                    if (image != null && !image.isEmpty()) {
+                        try {
+                            String imageUrl = ticketService.uploadTicketImage(created.getId(), image);
+                            System.out.println("Image uploaded: " + imageUrl);
+                            uploaded++;
+                        } catch (Exception e) {
+                            System.err.println("Failed to upload image: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }
 
@@ -157,6 +172,15 @@ public class TicketController {
         return ticketService.updateTicketStatus(id, status)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/resolve")
+    public ResponseEntity<?> resolveTicket(@PathVariable String id, @RequestBody Map<String, String> body) {
+        String resolutionNotes = body.get("resolutionNotes");
+        return ticketService.updateTicketStatus(id, "RESOLVED").map(ticket -> {
+            ticket.setResolutionNotes(resolutionNotes);
+            return ResponseEntity.ok(ticket);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PatchMapping("/{id}/assign")

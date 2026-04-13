@@ -1,7 +1,9 @@
 package com.smartcampus.controller;
 
+import com.smartcampus.model.Attendance;
 import com.smartcampus.model.Booking;
 import com.smartcampus.model.User;
+import com.smartcampus.repository.AttendanceRepository;
 import com.smartcampus.repository.UserRepository;
 import com.smartcampus.service.BookingService;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +12,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,10 +23,12 @@ public class BookingController {
 
     private final BookingService bookingService;
     private final UserRepository userRepository;
+    private final AttendanceRepository attendanceRepository;
 
-    public BookingController(BookingService bookingService, UserRepository userRepository) {
+    public BookingController(BookingService bookingService, UserRepository userRepository, AttendanceRepository attendanceRepository) {
         this.bookingService = bookingService;
         this.userRepository = userRepository;
+        this.attendanceRepository = attendanceRepository;
     }
 
     private User getAuthenticatedUser(OAuth2User principal) {
@@ -70,7 +75,13 @@ public class BookingController {
     @GetMapping
     public ResponseEntity<List<Booking>> getAllBookings(@AuthenticationPrincipal OAuth2User principal) {
         // Ideally should check if user is Admin, omitting for simplicity
-        return ResponseEntity.ok(bookingService.getAllBookings());
+        List<Booking> bookings = bookingService.getAllBookings();
+        System.out.println("📋 Fetching all bookings: " + bookings.size() + " found");
+        for (Booking b : bookings) {
+            String qrStatus = (b.getQrValidationData() != null && !b.getQrValidationData().isEmpty()) ? "✓ (" + b.getQrValidationData() + ")" : "✗ (null)";
+            System.out.println("  - Booking " + b.getId() + ": status=" + b.getStatus() + ", qrData=" + qrStatus);
+        }
+        return ResponseEntity.ok(bookings);
     }
 
     @GetMapping("/my-bookings")
@@ -78,7 +89,12 @@ public class BookingController {
         User user = getAuthenticatedUser(principal);
         if (user == null) return ResponseEntity.status(401).build();
         
-        return ResponseEntity.ok(bookingService.getUserBookings(user.getId()));
+        List<Booking> bookings = bookingService.getUserBookings(user.getId());
+        System.out.println("📋 Fetching bookings for user " + user.getName() + ": " + bookings.size() + " found");
+        for (Booking b : bookings) {
+            System.out.println("  - Booking " + b.getId() + ": status=" + b.getStatus() + ", qrData=" + (b.getQrValidationData() != null ? "✓" : "✗"));
+        }
+        return ResponseEntity.ok(bookings);
     }
 
     @PostMapping
@@ -148,30 +164,28 @@ public class BookingController {
     }
 
     @GetMapping("/verify-qr")
-    public ResponseEntity<?> verifyQrCode(@RequestParam String qrData) {
+    public ResponseEntity<?> verifyQrCode(
+            @RequestParam String qrData,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String userName,
+            @RequestParam(required = false) String userEmail,
+            @RequestParam(required = false) String studentId) {
         // Public endpoint - no authentication required for QR check-in
+        System.out.println("🔍 QR Verification Request - qrData: " + qrData + ", userId: " + userId + ", studentId: " + studentId);
         
         Optional<Booking> bookingOpt = bookingService.verifyQrData(qrData);
         
         if (!bookingOpt.isPresent()) {
+            System.out.println("❌ QR Code NOT FOUND in database: " + qrData);
             return ResponseEntity.status(404).body(Map.of(
                 "error", "INVALID_QR",
                 "message", "This QR code is not recognized."
             ));
         }
         
+        System.out.println("✅ QR Code FOUND - Booking ID: " + bookingOpt.get().getId());
         Booking booking = bookingOpt.get();
         LocalDateTime now = LocalDateTime.now();
-        
-        // Check if already checked in
-        if (booking.getCheckedInAt() != null) {
-            return ResponseEntity.status(400).body(Map.of(
-                "error", "ALREADY_CHECKED_IN",
-                "message", "Already Checked In",
-                "checkedInAt", booking.getCheckedInAt(),
-                "booking", booking
-            ));
-        }
         
         // Check if booking is not approved
         if (!"APPROVED".equals(booking.getStatus())) {
@@ -204,6 +218,128 @@ public class BookingController {
             ));
         }
         
+        // ===== MULTI-STUDENT CHECK-IN (for lecture halls, labs, meeting rooms) =====
+        if (userId != null && !userId.isEmpty()) {
+            // Normalize userName for duplicate checking
+            String normalizedUserName = userName != null ? userName.trim() : "";
+            
+            System.out.println("🔍 Check-in request - BookingId: " + booking.getId() + ", Student ID: '" + studentId + "', UserName: '" + normalizedUserName + "'");
+            
+            // Check for duplicate userId (Student ID or Email) - PRIMARY CHECK
+            Optional<Attendance> existingByUserId = attendanceRepository.findByBookingIdAndUserId(booking.getId(), userId);
+            
+            if (existingByUserId.isPresent()) {
+                Attendance existing = existingByUserId.get();
+                long totalAttendees = attendanceRepository.countByBookingId(booking.getId());
+                
+                System.out.println("⚠️ DUPLICATE BLOCKED - Unique ID '" + userId + "' already checked in!");
+                if (existing.getStudentId() != null && !existing.getStudentId().isEmpty()) {
+                    System.out.println("   Student ID: " + existing.getStudentId());
+                }
+                System.out.println("   Existing record: Name='" + existing.getUserName() + "', CheckedInAt=" + existing.getCheckedInAt());
+                System.out.println("   Attempted Name: '" + normalizedUserName + "'");
+                
+                // Create clear message based on whether studentId was used
+                String duplicateMessage;
+                if (existing.getStudentId() != null && !existing.getStudentId().isEmpty()) {
+                    duplicateMessage = "This Student ID (" + existing.getStudentId() + ") has already been used to check in";
+                    if (!normalizedUserName.equals(existing.getUserName())) {
+                        duplicateMessage += " by '" + existing.getUserName() + "'";
+                    }
+                    duplicateMessage += ". You cannot check in twice with the same Student ID.";
+                } else if (existing.getUserEmail() != null && !existing.getUserEmail().isEmpty()) {
+                    duplicateMessage = "This Email (" + existing.getUserEmail() + ") has already been used to check in";
+                    if (!normalizedUserName.equals(existing.getUserName())) {
+                        duplicateMessage += " by '" + existing.getUserName() + "'";
+                    }
+                    duplicateMessage += ". You cannot check in twice with the same Email.";
+                } else {
+                    duplicateMessage = "You have already checked in for this session";
+                    if (!normalizedUserName.equals(existing.getUserName())) {
+                        duplicateMessage += " as '" + existing.getUserName() + "'";
+                    }
+                    duplicateMessage += ".";
+                }
+                
+                return ResponseEntity.status(400).body(Map.of(
+                    "error", "ALREADY_CHECKED_IN",
+                    "message", duplicateMessage,
+                    "checkedInAt", existing.getCheckedInAt(),
+                    "booking", booking,
+                    "totalAttendees", totalAttendees,
+                    "expectedAttendees", booking.getExpectedAttendees() != null ? booking.getExpectedAttendees() : 0,
+                    "existingName", existing.getUserName(),
+                    "studentId", existing.getStudentId() != null ? existing.getStudentId() : ""
+                ));
+            }
+            
+            // Check by name (case-insensitive) - SECONDARY CHECK (for users who may not have userId)
+            Optional<Attendance> existingByName = normalizedUserName.isEmpty() ? 
+                Optional.empty() : 
+                attendanceRepository.findByBookingIdAndUserNameIgnoreCase(booking.getId(), normalizedUserName);
+            
+            // If this exact name already checked in by a different user, block it
+            if (existingByName.isPresent()) {
+                Attendance existing = existingByName.get();
+                long totalAttendees = attendanceRepository.countByBookingId(booking.getId());
+                
+                System.out.println("⚠️ DUPLICATE NAME BLOCKED - Name: '" + normalizedUserName + "' already exists");
+                System.out.println("   Existing record: UserId='" + existing.getUserId() + "', CheckedInAt=" + existing.getCheckedInAt());
+                
+                return ResponseEntity.status(400).body(Map.of(
+                    "error", "ALREADY_CHECKED_IN",
+                    "message", "A person with this name has already checked in for this session.",
+                    "checkedInAt", existing.getCheckedInAt(),
+                    "booking", booking,
+                    "totalAttendees", totalAttendees,
+                    "expectedAttendees", booking.getExpectedAttendees() != null ? booking.getExpectedAttendees() : 0
+                ));
+            }
+            
+            // Create new attendance record
+            Attendance attendance = Attendance.builder()
+                    .bookingId(booking.getId())
+                    .userId(userId)
+                    .studentId(studentId != null ? studentId.trim() : null)
+                    .userName(normalizedUserName.isEmpty() ? "Anonymous" : normalizedUserName)
+                    .userEmail(userEmail != null ? userEmail.trim() : null)
+                    .checkedInAt(now)
+                    .build();
+            
+            attendanceRepository.save(attendance);
+            long totalAttendees = attendanceRepository.countByBookingId(booking.getId());
+            
+            System.out.println("✅ NEW CHECK-IN SUCCESSFUL!");
+            System.out.println("   Name: '" + normalizedUserName + "'");
+            if (studentId != null && !studentId.trim().isEmpty()) {
+                System.out.println("   Student ID: '" + studentId.trim() + "'");
+            }
+            System.out.println("   Unique ID: '" + userId + "'");
+            System.out.println("   Progress: " + totalAttendees + "/" + (booking.getExpectedAttendees() != null ? booking.getExpectedAttendees() : "?"));
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Check-in Successful");
+            response.put("booking", booking);
+            response.put("checkedInAt", now);
+            response.put("totalAttendees", totalAttendees);
+            response.put("expectedAttendees", booking.getExpectedAttendees() != null ? booking.getExpectedAttendees() : 0);
+            response.put("attendanceMode", "MULTI_STUDENT");
+            
+            return ResponseEntity.ok(response);
+        }
+        
+        // ===== SINGLE CHECK-IN (for equipment bookings - old behavior) =====
+        // Check if already checked in
+        if (booking.getCheckedInAt() != null) {
+            return ResponseEntity.status(400).body(Map.of(
+                "error", "ALREADY_CHECKED_IN",
+                "message", "Already Checked In",
+                "checkedInAt", booking.getCheckedInAt(),
+                "booking", booking
+            ));
+        }
+        
         // Update booking with check-in timestamp
         booking.setCheckedInAt(now);
         bookingService.updateCheckIn(booking);
@@ -212,7 +348,37 @@ public class BookingController {
             "success", true,
             "message", "Check-in Successful",
             "booking", booking,
-            "checkedInAt", now
+            "checkedInAt", now,
+            "attendanceMode", "SINGLE"
         ));
+    }
+    
+    @GetMapping("/{id}/attendance")
+    public ResponseEntity<?> getBookingAttendance(@PathVariable String id) {
+        System.out.println("📊 Fetching attendance for booking: " + id);
+        
+        // Get attendance list for a booking
+        Optional<Booking> bookingOpt = bookingService.getBookingById(id);
+        
+        if (!bookingOpt.isPresent()) {
+            System.out.println("❌ Booking not found: " + id);
+            return ResponseEntity.status(404).body(Map.of("error", "Booking not found"));
+        }
+        
+        Booking booking = bookingOpt.get();
+        List<Attendance> attendanceList = attendanceRepository.findByBookingIdOrderByCheckedInAtAsc(id);
+        long totalAttendees = attendanceList.size();
+        
+        System.out.println("   Resource: " + booking.getResourceName());
+        System.out.println("   Status: " + booking.getStatus());
+        System.out.println("   Attendance: " + totalAttendees + "/" + (booking.getExpectedAttendees() != null ? booking.getExpectedAttendees() : 0));
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("booking", booking);
+        response.put("attendanceList", attendanceList);
+        response.put("totalAttendees", totalAttendees);
+        response.put("expectedAttendees", booking.getExpectedAttendees() != null ? booking.getExpectedAttendees() : 0);
+        
+        return ResponseEntity.ok(response);
     }
 }

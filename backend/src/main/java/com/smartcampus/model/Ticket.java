@@ -8,6 +8,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -34,7 +36,13 @@ public class Ticket {
     
     private String rejectionReason; // Used when status is REJECTED
     
-    private String imageUrl; // S3 link or local path to uploaded image
+    private List<String> imageUrls = new ArrayList<>(); // Up to 3 uploaded image URLs
+
+    private String category;
+    private String priority;
+    private String preferredContact;
+    private String assignedTechnicianName;
+    private String resolutionNotes;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

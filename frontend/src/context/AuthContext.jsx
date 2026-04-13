@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
     const loginAsDev = (role) => {
         const devUsers = {
             ADMIN: { id: 'dev-admin-123', name: 'Dev Admin', email: 'admin@dev.local', role: 'ADMIN' },
-            USER: { id: 'dev-user-456', name: 'Dev Student', email: 'student@dev.local', role: 'USER' },
+            USER: { id: 'dev-user-456', name: 'Dev User', email: 'user@dev.local', role: 'USER' },
             TECHNICIAN: { id: 'dev-tech-789', name: 'Dev Technician', email: 'tech@dev.local', role: 'TECHNICIAN' }
         };
         const selectedUser = devUsers[role];

@@ -1,20 +1,22 @@
 import axios from 'axios';
 
-// Get API URL from environment variable, fallback to localhost
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
 // Create axios instance with base configuration
 const axiosInstance = axios.create({
-    baseURL: API_URL,
+    baseURL: 'http://localhost:8080',
     withCredentials: true, // Required for session/cookies
     timeout: 10000, // 10 second timeout
 });
 
-// Dynamically update baseURL based on environment
+// Dynamically update baseURL based on current hostname
 axiosInstance.interceptors.request.use(
     (config) => {
-        // Use environment variable for API URL
-        config.baseURL = API_URL;
+        // Dynamically set baseURL based on frontend URL
+        const hostname = window.location.hostname;
+        if (hostname === '172.28.15.11') {
+            config.baseURL = 'http://172.28.15.11:8080';
+        } else {
+            config.baseURL = 'http://localhost:8080';
+        }
         
         // Set Content-Type to application/json for non-FormData requests
         // FormData requests should not have Content-Type set (axios handles it automatically with boundary)

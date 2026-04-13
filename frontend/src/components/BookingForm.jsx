@@ -20,10 +20,21 @@ export const BookingForm = ({ onClose }) => {
     useEffect(() => {
         // Fetch active resources for booking
         setLoadingResources(true);
-        axios.get('/api/resources', { withCredentials: true })
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        axios.get(`/api/resources?_t=${timestamp}`, { 
+            withCredentials: true,
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        })
             .then(res => {
                 console.log('Resources loaded:', res.data);
-                setResources(res.data.filter(r => r.status === 'ACTIVE'));
+                const activeResources = res.data.filter(r => r.status === 'ACTIVE');
+                console.log('Active resources:', activeResources);
+                setResources(activeResources);
             })
             .catch(err => {
                 console.error('Error loading resources:', err);

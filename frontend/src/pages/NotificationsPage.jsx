@@ -16,7 +16,10 @@ export const NotificationsPage = () => {
     const loadNotifications = async () => {
         try {
             setLoading(true);
-            const res = await axios.get(`/api/notifications?unreadOnly=${filter === 'unread'}`);
+            const res = await axios.get(`/api/notifications?unreadOnly=${filter === 'unread'}`, {
+                withCredentials: true
+            });
+            console.log('Loaded notifications:', res.data);
             setNotifications(res.data);
         } catch (error) {
             console.error('Failed to load notifications:', error);
@@ -27,7 +30,12 @@ export const NotificationsPage = () => {
 
     const markAsRead = async (notificationId) => {
         try {
-            await axios.patch(`/api/notifications/${notificationId}/read`);
+            await axios.patch(`/api/notifications/${notificationId}/read`, {}, {
+                withCredentials: true
+            });
+            console.log('Marked notification as read:', notificationId);
+            
+            // Update UI immediately
             setNotifications(prev =>
                 prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
             );
@@ -38,20 +46,17 @@ export const NotificationsPage = () => {
 
     const markAllAsRead = async () => {
         try {
-            const response = await axios.patch('/api/notifications/read-all');
-            console.log('Mark all as read response:', response);
+            console.log('Marking all notifications as read...');
+            await axios.patch('/api/notifications/read-all', {}, {
+                withCredentials: true
+            });
+            console.log('✅ All notifications marked as read');
             
-            // Optimistically update UI
+            // Update UI immediately
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
             
-            // Reload to get actual state from backend
-            await loadNotifications();
-            
-            // Show success feedback
-            alert('✅ All notifications marked as read!');
         } catch (error) {
             console.error('Failed to mark all as read:', error);
-            alert('❌ Failed to mark all notifications as read. Please try again.');
         }
     };
 
@@ -159,11 +164,15 @@ export const NotificationsPage = () => {
                     {notifications.map((notification) => (
                         <div
                             key={notification.id}
-                            onClick={() => !notification.isRead && markAsRead(notification.id)}
+                            onClick={() => {
+                                if (!notification.isRead) {
+                                    markAsRead(notification.id);
+                                }
+                            }}
                             className={`p-4 rounded-lg border transition cursor-pointer ${
                                 notification.isRead
-                                    ? 'bg-white border-gray-200 hover:bg-gray-50'
-                                    : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                                    ? 'bg-white border-gray-200 hover:bg-gray-50 opacity-75'
+                                    : 'bg-blue-50 border-blue-300 hover:bg-blue-100 shadow-sm'
                             }`}
                         >
                             <div className="flex gap-4">
@@ -176,20 +185,32 @@ export const NotificationsPage = () => {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
                                         <h3 className={`font-semibold ${
-                                            notification.isRead ? 'text-gray-900' : 'text-gray-900'
+                                            notification.isRead ? 'text-gray-600' : 'text-gray-900'
                                         }`}>
                                             {notification.title}
                                         </h3>
                                         {!notification.isRead && (
-                                            <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-2"></div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
+                                                <span className="text-xs font-semibold text-blue-600 uppercase">New</span>
+                                            </div>
+                                        )}
+                                        {notification.isRead && (
+                                            <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
                                         )}
                                     </div>
-                                    <p className="text-gray-700 mt-1 text-sm leading-relaxed">
+                                    <p className={`mt-1 text-sm leading-relaxed ${
+                                        notification.isRead ? 'text-gray-500' : 'text-gray-700'
+                                    }`}>
                                         {notification.message}
                                     </p>
                                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                         <span>{formatTimestamp(notification.createdAt)}</span>
-                                        <span className="px-2 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">
+                                        <span className={`px-2 py-0.5 rounded font-medium ${
+                                            notification.isRead 
+                                                ? 'bg-gray-100 text-gray-500'
+                                                : 'bg-blue-100 text-blue-700'
+                                        }`}>
                                             {notification.relatedEntityType}
                                         </span>
                                     </div>

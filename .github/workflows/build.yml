@@ -16,9 +16,9 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Build with Maven
+      - name: Build with Gradle
         working-directory: ./backend
-        run: mvn clean package -DskipTests
+        run: ./gradlew build -x test
 
   build-frontend:
     runs-on: ubuntu-latest

@@ -31,14 +31,13 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Clear existing data to ensure fresh seed
-        resourceRepository.deleteAll();
-        userRepository.deleteAll();
-        bookingRepository.deleteAll();
-        ticketRepository.deleteAll();
-        notificationRepository.deleteAll();
+        // Only initialize if database is empty (first-time setup only)
+        if (userRepository.count() > 0) {
+            System.out.println("Database already contains data. Skipping initialization.");
+            return;
+        }
 
-        System.out.println("Initializing database with seed data...");
+        System.out.println("Database is empty. Initializing with seed data...");
 
         // Create sample users with IDs matching frontend dev login
         User admin = User.builder()
