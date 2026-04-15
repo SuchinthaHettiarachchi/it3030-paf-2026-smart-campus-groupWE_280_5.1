@@ -1,22 +1,68 @@
-# Operating System Files
-.DS_Store
-Thumbs.db
-
-# IDE Files
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Ngrok
-ngrok.exe
+# ===========================
+# ROOT
+# ===========================
+.env
+.env.local
+.env.*.local
+*.log
+*.bat
+*.yml~
 ngrok.yml
 start-ngrok.bat
+allow-backend-firewall.bat
 
-# Logs
-*.log
+# ===========================
+# BACKEND (Spring Boot / Gradle)
+# ===========================
+backend/.env
+backend/.env.*
+backend/build/
+backend/.gradle/
+backend/.apt_generated/
+backend/.apt_generated_tests/
+backend/.settings/
+backend/bin/
+backend/out/
+backend/out.txt
+backend/build.log
+backend/build_log.txt
+backend/startup.log
+backend/backend.log
+backend/uploads/
+backend/railway.json
+backend/gradlew.bat
+backend/HELP.md
 
-# Environment Variables (never commit real .env files; .env.example files are safe to track)
-.env
-**/.env
+# Keep gradle wrapper (needed to build)
+!backend/gradle/
+!backend/gradlew
+!backend/gradle/wrapper/
+!backend/gradle/wrapper/gradle-wrapper.jar
+!backend/gradle/wrapper/gradle-wrapper.properties
+
+# ===========================
+# FRONTEND (React / Vite / Node)
+# ===========================
+frontend/.env
+frontend/.env.*
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.eslintcache
+
+# ===========================
+# IDE & OS
+# ===========================
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ===========================
+# MISC
+# ===========================
+*.zip
+*.tar.gz
