@@ -82,9 +82,9 @@ export const TicketsPage = () => {
                                         <p className="text-sm text-gray-700 font-medium">{ticket.status}</p>
                                     </div>
                                 </div>
-                                {ticket.assignedTechnicianId && (
+                                {ticket.assignedTechnicianName && (
                                     <div className="hidden md:block text-sm text-gray-500">
-                                        Assigned Tech ID: {ticket.assignedTechnicianId}
+                                        Assigned: {ticket.assignedTechnicianName}
                                     </div>
                                 )}
                             </li>

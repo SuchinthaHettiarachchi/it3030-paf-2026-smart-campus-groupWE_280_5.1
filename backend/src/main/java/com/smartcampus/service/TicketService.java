@@ -84,6 +84,10 @@ public class TicketService {
         return saved;
     }
 
+    public Ticket saveTicket(Ticket ticket) {
+        return ticketRepository.save(ticket);
+    }
+
     public String uploadTicketImage(String ticketId, MultipartFile file) throws IOException {
         Optional<Ticket> ticketOpt = ticketRepository.findById(ticketId);
         if (ticketOpt.isEmpty()) throw new RuntimeException("Ticket not found");
@@ -219,5 +223,17 @@ public class TicketService {
                 throw new RuntimeException("Not authorized to delete comment");
             }
         });
+    }
+
+    public Comment editComment(String commentId, String newText, String authorId, String userRole) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+        // Ownership rule: only author can edit (not even ADMIN — edits must be authentic)
+        if (!comment.getAuthorId().equals(authorId) && !"ADMIN".equals(userRole)) {
+            throw new RuntimeException("Not authorized to edit this comment");
+        }
+        comment.setText(newText);
+        comment.setUpdatedAt(LocalDateTime.now());
+        return commentRepository.save(comment);
     }
 }

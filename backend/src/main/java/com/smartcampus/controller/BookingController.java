@@ -74,7 +74,12 @@ public class BookingController {
 
     @GetMapping
     public ResponseEntity<List<Booking>> getAllBookings(@AuthenticationPrincipal OAuth2User principal) {
-        // Ideally should check if user is Admin, omitting for simplicity
+        User user = getAuthenticatedUser(principal);
+        if (user == null) return ResponseEntity.status(401).build();
+        // Only ADMIN can view all bookings
+        if (user.getRole() != com.smartcampus.model.Role.ADMIN) {
+            return ResponseEntity.status(403).build();
+        }
         List<Booking> bookings = bookingService.getAllBookings();
         System.out.println("📋 Fetching all bookings: " + bookings.size() + " found");
         for (Booking b : bookings) {
@@ -114,8 +119,15 @@ public class BookingController {
     }
 
     @PutMapping("/{id}/approve")
-    public ResponseEntity<?> approveBooking(@PathVariable String id, @RequestBody Map<String, String> body) {
-        // Require ADMIN role check in production
+    public ResponseEntity<?> approveBooking(@PathVariable String id,
+                                            @RequestBody Map<String, String> body,
+                                            @AuthenticationPrincipal OAuth2User principal) {
+        User user = getAuthenticatedUser(principal);
+        if (user == null) return ResponseEntity.status(401).build();
+        // Only ADMIN can approve or reject bookings
+        if (user.getRole() != com.smartcampus.model.Role.ADMIN) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only admins can approve or reject bookings"));
+        }
         String status = body.getOrDefault("status", "APPROVED"); // APPROVED or REJECTED
         String rejectionReason = body.get("rejectionReason");
         return bookingService.updateBookingStatus(id, status, rejectionReason)

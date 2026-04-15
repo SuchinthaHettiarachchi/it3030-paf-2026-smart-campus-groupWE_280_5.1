@@ -26,4 +26,5 @@ public class Comment {
     
     private String text;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt; // Set when comment is edited
 }

@@ -179,7 +179,8 @@ public class TicketController {
         String resolutionNotes = body.get("resolutionNotes");
         return ticketService.updateTicketStatus(id, "RESOLVED").map(ticket -> {
             ticket.setResolutionNotes(resolutionNotes);
-            return ResponseEntity.ok(ticket);
+            Ticket saved = ticketService.saveTicket(ticket); // persist notes
+            return ResponseEntity.ok(saved);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -207,6 +208,21 @@ public class TicketController {
         comment.setAuthorName(user.getName());
         
         return ResponseEntity.ok(ticketService.addComment(id, comment));
+    }
+
+    @PutMapping("/comments/{commentId}")
+    public ResponseEntity<?> editComment(@PathVariable String commentId,
+                                         @RequestBody Comment updatedComment,
+                                         @AuthenticationPrincipal OAuth2User principal) {
+        User user = getAuthenticatedUser(principal);
+        if (user == null) return ResponseEntity.status(401).build();
+
+        try {
+            Comment edited = ticketService.editComment(commentId, updatedComment.getText(), user.getId(), user.getRole().name());
+            return ResponseEntity.ok(edited);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/comments/{commentId}")

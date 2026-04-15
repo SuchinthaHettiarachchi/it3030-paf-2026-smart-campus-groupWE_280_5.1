@@ -37,4 +37,7 @@ public class Resource {
     // Additional metadata
     private String description;
     private String imageUrl;
+    
+    // Availability windows e.g. "Mon-Fri 08:00-18:00"
+    private String availabilityWindows;
 }

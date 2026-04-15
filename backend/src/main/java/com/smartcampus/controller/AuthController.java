@@ -75,31 +75,6 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String password = request.get("password");
-
-        if (email == null || password == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Email and password are required"));
-        }
-
-        // Simple hardcoded login for demo (in production, use proper password hashing)
-        if ("sanayasuraweera0806@gmail.com".equals(email) && "Sanaya@0806".equals(password)) {
-            Optional<User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isPresent()) {
-                return ResponseEntity.ok(userOpt.get());
-            } else {
-                // Create a new user if not exists
-                User newUser = new User();
-                newUser.setEmail(email);
-                newUser.setName("Sanaya Suraweera");
-                newUser.setRole(Role.ADMIN);
-                userRepository.save(newUser);
-                return ResponseEntity.ok(newUser);
-            }
-        }
-
-        return ResponseEntity.status(401).body(Map.of("message", "Invalid email or password"));
-    }
+    // NOTE: Password-based login removed. Authentication is handled via Google OAuth2.
+    // Use /oauth2/authorization/google to sign in.
 }

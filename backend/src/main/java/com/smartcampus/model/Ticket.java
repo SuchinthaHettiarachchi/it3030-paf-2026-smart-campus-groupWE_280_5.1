@@ -36,6 +36,7 @@ public class Ticket {
     
     private String rejectionReason; // Used when status is REJECTED
     
+    @Builder.Default
     private List<String> imageUrls = new ArrayList<>(); // Up to 3 uploaded image URLs
 
     private String category;

@@ -11,7 +11,10 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
         title: '', 
         description: '', 
         resourceName: '',
-        resourceId: '' 
+        resourceId: '',
+        category: '',
+        priority: 'MEDIUM',
+        preferredContact: 'EMAIL'
     });
     const [resources, setResources] = useState([]);
     const [loadingResources, setLoadingResources] = useState(false);
@@ -76,9 +79,12 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
             if (formData.resourceId && formData.resourceId.trim()) {
                 formDataToSend.append('resourceId', formData.resourceId.trim());
             }
+            if (formData.category) formDataToSend.append('category', formData.category);
+            if (formData.priority) formDataToSend.append('priority', formData.priority);
+            if (formData.preferredContact) formDataToSend.append('preferredContact', formData.preferredContact);
             
             if (selectedFile) {
-                formDataToSend.append('image', selectedFile);
+                formDataToSend.append('images', selectedFile); // backend expects 'images' (List<MultipartFile>)
             }
 
             console.log('Creating ticket with data:', {
@@ -219,12 +225,43 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                             <label className="block text-sm font-medium mb-1">Description *</label>
                             <textarea 
                                 required 
-                                rows="4" 
+                                rows="3" 
                                 value={formData.description} 
                                 onChange={e => setFormData({ ...formData, description: e.target.value })} 
                                 className="w-full p-2 border rounded-lg outline-none"
                                 placeholder="Describe the issue in detail..."
                             ></textarea>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Category</label>
+                                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2 border rounded-lg outline-none">
+                                    <option value="">General</option>
+                                    <option value="ELECTRICAL">Electrical</option>
+                                    <option value="PLUMBING">Plumbing</option>
+                                    <option value="IT">IT / Network</option>
+                                    <option value="HVAC">HVAC / AC</option>
+                                    <option value="STRUCTURAL">Structural</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Priority</label>
+                                <select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} className="w-full p-2 border rounded-lg outline-none">
+                                    <option value="LOW">Low</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="CRITICAL">Critical</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Contact Via</label>
+                                <select value={formData.preferredContact} onChange={e => setFormData({...formData, preferredContact: e.target.value})} className="w-full p-2 border rounded-lg outline-none">
+                                    <option value="EMAIL">Email</option>
+                                    <option value="PHONE">Phone</option>
+                                    <option value="IN_PERSON">In Person</option>
+                                </select>
+                            </div>
                         </div>
                         
                         {/* Attachment Upload */}
@@ -322,19 +359,24 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                         <p className="whitespace-pre-wrap text-sm">{ticket.description}</p>
                     </div>
 
-                    {/* Display attached image if exists */}
-                    {ticket.imageUrl && (
+                    {/* Display attached images if exist */}
+                    {ticket.imageUrls && ticket.imageUrls.length > 0 && (
                         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <h4 className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
                                 <Paperclip className="w-4 h-4" />
-                                Attachment
+                                Attachments ({ticket.imageUrls.length})
                             </h4>
-                            <img 
-                                src={ticket.imageUrl} 
-                                alt="Ticket attachment" 
-                                className="max-w-full rounded-lg shadow-sm border border-gray-300 cursor-pointer hover:opacity-90 transition"
-                                onClick={() => window.open(ticket.imageUrl, '_blank')}
-                            />
+                            <div className="flex flex-wrap gap-3">
+                                {ticket.imageUrls.map((url, i) => (
+                                    <img
+                                        key={i}
+                                        src={url}
+                                        alt={`Attachment ${i + 1}`}
+                                        className="max-h-40 rounded-lg shadow-sm border border-gray-300 cursor-pointer hover:opacity-90 transition"
+                                        onClick={() => window.open(url, '_blank')}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     )}
 

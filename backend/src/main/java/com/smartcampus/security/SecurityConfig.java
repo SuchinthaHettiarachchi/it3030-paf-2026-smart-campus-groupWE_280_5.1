@@ -1,5 +1,6 @@
 package com.smartcampus.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,9 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final DevBypassFilter devBypassFilter;
+
+    @Value("${oauth.success-url:http://localhost:5173/select-role}")
+    private String oauthSuccessUrl;
 
     public SecurityConfig(CustomOAuth2UserService customOAuth2UserService, DevBypassFilter devBypassFilter) {
         this.customOAuth2UserService = customOAuth2UserService;
@@ -48,7 +52,7 @@ public class SecurityConfig {
             )
             .oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                .defaultSuccessUrl("http://172.28.15.11:5173/select-role", true)
+                .defaultSuccessUrl(oauthSuccessUrl, true)
             );
             
         return http.build();
