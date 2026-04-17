@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { X, Send, Paperclip } from 'lucide-react';
+import { X, Send, Paperclip, Edit2, Trash2 } from 'lucide-react';
 
 export const TicketDetailsModal = ({ ticket, onClose }) => {
     const { user } = useAuth();
@@ -18,13 +18,21 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
     });
     const [resources, setResources] = useState([]);
     const [loadingResources, setLoadingResources] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [filePreview, setFilePreview] = useState(null);
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [filePreviews, setFilePreviews] = useState([]);
 
     // View mode state
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [status, setStatus] = useState(ticket?.status || 'OPEN');
+    
+    // Status update details
+    const [statusReason, setStatusReason] = useState('');
+    const [pendingStatus, setPendingStatus] = useState('');
+
+    // Comment edit details
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingCommentText, setEditingCommentText] = useState('');
 
     useEffect(() => {
         if (!ticket?.isNew && ticket?.id) {
@@ -83,8 +91,10 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
             if (formData.priority) formDataToSend.append('priority', formData.priority);
             if (formData.preferredContact) formDataToSend.append('preferredContact', formData.preferredContact);
             
-            if (selectedFile) {
-                formDataToSend.append('images', selectedFile); // backend expects 'images' (List<MultipartFile>)
+            if (selectedFiles.length > 0) {
+                selectedFiles.forEach(file => {
+                    formDataToSend.append('images', file);
+                });
             }
 
             console.log('Creating ticket with data:', {
@@ -92,7 +102,7 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                 description: formData.description,
                 resourceName: formData.resourceName,
                 resourceId: formData.resourceId,
-                hasImage: !!selectedFile
+                hasImage: selectedFiles.length > 0
             });
 
             const response = await axios.post('/api/tickets', formDataToSend, { 
@@ -111,12 +121,25 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
         }
     };
 
-    const handleStatusUpdate = async (e) => {
+    const handleStatusMenuChange = (e) => {
         const newStatus = e.target.value;
-        setStatus(newStatus);
+        setPendingStatus(newStatus);
+        if (newStatus !== 'RESOLVED' && newStatus !== 'REJECTED') {
+            handleStatusCommit(newStatus, '');
+        }
+    };
+
+    const handleStatusCommit = async (commitStatus, reason) => {
         try {
-            await axios.put(`/api/tickets/${ticket.id}/status`, { status: newStatus }, { withCredentials: true });
-            onClose();
+            if (commitStatus === 'RESOLVED') {
+                await axios.put(`/api/tickets/${ticket.id}/resolve`, { resolutionNotes: reason }, { withCredentials: true });
+            } else {
+                await axios.put(`/api/tickets/${ticket.id}/status`, { status: commitStatus, rejectionReason: reason }, { withCredentials: true });
+            }
+            setStatus(commitStatus);
+            setPendingStatus('');
+            setStatusReason('');
+            onClose(); // Optional: or just show success msg
         } catch (err) {
             alert("Status update failed");
         }
@@ -143,35 +166,63 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
         }
     };
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validate file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                alert('File size must be less than 5MB');
-                return;
-            }
-            
-            // Validate file type (images only)
-            if (!file.type.startsWith('image/')) {
-                alert('Only image files are allowed');
-                return;
-            }
-            
-            setSelectedFile(file);
-            
-            // Create preview
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFilePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
+    const handleDeleteComment = async (commentId) => {
+        if (!window.confirm("Delete this comment?")) return;
+        try {
+            await axios.delete(`/api/tickets/comments/${commentId}`, { withCredentials: true });
+            fetchComments();
+        } catch (err) {
+            alert("Failed to delete comment");
         }
     };
 
-    const removeFile = () => {
-        setSelectedFile(null);
-        setFilePreview(null);
+    const handleSaveEditComment = async (commentId) => {
+        if (!editingCommentText.trim()) return;
+        try {
+            await axios.put(`/api/tickets/comments/${commentId}`, { text: editingCommentText }, { withCredentials: true });
+            setEditingCommentId(null);
+            setEditingCommentText('');
+            fetchComments();
+        } catch (err) {
+            alert("Failed to edit comment");
+        }
+    };
+
+    const handleFileChange = (e) => {
+        let files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        if (selectedFiles.length + files.length > 3) {
+            alert('You can only upload a maximum of 3 images.');
+            files = files.slice(0, 3 - selectedFiles.length);
+        }
+
+        const validFiles = files.filter(file => {
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`${file.name} is too large (max 5MB)`);
+                return false;
+            }
+            if (!file.type.startsWith('image/')) {
+                alert(`${file.name} is not an image`);
+                return false;
+            }
+            return true;
+        });
+
+        setSelectedFiles(prev => [...prev, ...validFiles]);
+
+        validFiles.forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFilePreviews(prev => [...prev, reader.result]);
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const removeFile = (indexToRemove) => {
+        setSelectedFiles(prev => prev.filter((_, i) => i !== indexToRemove));
+        setFilePreviews(prev => prev.filter((_, i) => i !== indexToRemove));
     };
 
     // --- Create Mode Form ---
@@ -266,34 +317,55 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                         
                         {/* Attachment Upload */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Attach Image (Optional)</label>
+                            <label className="block text-sm font-medium mb-2">Attach Image (Optional, Max 3)</label>
                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-500 transition">
-                                {!filePreview ? (
+                                {filePreviews.length === 0 ? (
                                     <>
                                         <input
                                             type="file"
+                                            multiple
                                             accept="image/*"
                                             onChange={handleFileChange}
                                             className="hidden"
                                             id="file-upload"
                                         />
-                                        <label htmlFor="file-upload" className="cursor-pointer">
-                                            <Paperclip className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                                            <p className="text-sm text-gray-600">Click to upload image</p>
-                                            <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+                                        <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
+                                            <Paperclip className="w-8 h-8 text-gray-400 mb-2" />
+                                            <p className="text-sm text-gray-600">Click to upload images</p>
+                                            <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB (Max 3)</p>
                                         </label>
                                     </>
                                 ) : (
-                                    <div className="relative">
-                                        <img src={filePreview} alt="Preview" className="max-h-40 mx-auto rounded" />
-                                        <button
-                                            type="button"
-                                            onClick={removeFile}
-                                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                        <p className="text-sm text-gray-600 mt-2">{selectedFile.name}</p>
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex flex-wrap gap-4 justify-center">
+                                            {filePreviews.map((preview, idx) => (
+                                                <div key={idx} className="relative group">
+                                                    <img src={preview} alt={`Preview ${idx + 1}`} className="max-h-32 object-cover rounded shadow-sm border border-gray-200" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeFile(idx)}
+                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {filePreviews.length < 3 && (
+                                            <div>
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    accept="image/*"
+                                                    onChange={handleFileChange}
+                                                    className="hidden"
+                                                    id="file-upload-more"
+                                                />
+                                                <label htmlFor="file-upload-more" className="cursor-pointer text-sm text-primary-600 font-medium hover:underline inline-flex items-center gap-1">
+                                                    <Paperclip className="w-4 h-4" /> Add More
+                                                </label>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -324,39 +396,73 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[90vh]">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-                    <div>
-                        <h2 className="text-2xl font-bold mb-1">{ticket.title}</h2>
-                        <p className="text-gray-500 text-sm">Opened by {ticket.creatorName} • {ticket.resourceName}</p>
+                <div className="p-6 border-b border-gray-100 flex flex-col gap-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h2 className="text-2xl font-bold mb-1">{ticket.title}</h2>
+                            <p className="text-gray-500 text-sm">Opened by {ticket.creatorName} • {ticket.resourceName}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            {(user.role === 'ADMIN' || user.role === 'TECHNICIAN') && (
+                                <select value={pendingStatus || status} onChange={handleStatusMenuChange} className="text-sm border p-1 rounded font-medium bg-gray-50 outline-none">
+                                    <option value="OPEN">Open</option>
+                                    <option value="IN_PROGRESS">In Progress</option>
+                                    <option value="RESOLVED">Resolved</option>
+                                    <option value="CLOSED">Closed</option>
+                                    <option value="REJECTED">Rejected</option>
+                                </select>
+                            )}
+                            {user.role === 'ADMIN' && (
+                                <select
+                                    onChange={(e) => handleAssign(e.target.value)}
+                                    value={ticket.assignedTechnicianId || ''}
+                                    className="text-sm border p-1 rounded font-medium bg-purple-50 text-purple-700 outline-none"
+                                >
+                                    <option value="" disabled>Assign Tech...</option>
+                                    <option value="dev-tech-789">Campus Technician (dev-tech-789)</option>
+                                </select>
+                            )}
+                            <button onClick={onClose}><X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        {(user.role === 'ADMIN' || user.role === 'TECHNICIAN') && (
-                            <select value={status} onChange={handleStatusUpdate} className="text-sm border p-1 rounded font-medium bg-gray-50 outline-none">
-                                <option value="OPEN">Open</option>
-                                <option value="IN_PROGRESS">In Progress</option>
-                                <option value="RESOLVED">Resolved</option>
-                                <option value="CLOSED">Closed</option>
-                                <option value="REJECTED">Rejected</option>
-                            </select>
-                        )}
-                        {user.role === 'ADMIN' && (
-                            <select
-                                onChange={(e) => handleAssign(e.target.value)}
-                                value={ticket.assignedTechnicianId || ''}
-                                className="text-sm border p-1 rounded font-medium bg-purple-50 text-purple-700 outline-none"
-                            >
-                                <option value="" disabled>Assign Tech...</option>
-                                <option value="dev-tech-789">Campus Technician (dev-tech-789)</option>
-                            </select>
-                        )}
-                        <button onClick={onClose}><X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button>
-                    </div>
+                    
+                    {(pendingStatus === 'RESOLVED' || pendingStatus === 'REJECTED') && (
+                        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg flex flex-col gap-2 mt-2">
+                            <label className="text-sm font-semibold text-yellow-900">
+                                {pendingStatus === 'RESOLVED' ? 'Resolution Notes' : 'Rejection Reason'}
+                            </label>
+                            <textarea
+                                value={statusReason}
+                                onChange={e => setStatusReason(e.target.value)}
+                                className="w-full p-2 border rounded outline-none text-sm"
+                                placeholder={pendingStatus === 'RESOLVED' ? 'What was done to fix this issue?' : 'Why is this ticket being rejected?'}
+                            />
+                            <div className="flex gap-2 justify-end mt-2">
+                                <button onClick={() => setPendingStatus('')} className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">Cancel</button>
+                                <button onClick={() => handleStatusCommit(pendingStatus, statusReason)} className="px-3 py-1 bg-primary-600 text-white text-sm rounded cursor-pointer hover:bg-primary-700 transition">
+                                    Apply Status
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-grow space-y-6">
                     <div className="bg-blue-50 text-blue-900 p-4 rounded-lg">
                         <h4 className="font-semibold mb-2">Description</h4>
                         <p className="whitespace-pre-wrap text-sm">{ticket.description}</p>
+                        {ticket.resolutionNotes && (
+                            <div className="mt-4 pt-4 border-t border-blue-200">
+                                <h4 className="font-semibold mb-1 text-green-700">Resolution Notes</h4>
+                                <p className="whitespace-pre-wrap text-sm text-green-900">{ticket.resolutionNotes}</p>
+                            </div>
+                        )}
+                        {ticket.rejectionReason && (
+                            <div className="mt-4 pt-4 border-t border-blue-200">
+                                <h4 className="font-semibold mb-1 text-red-700">Rejection Reason</h4>
+                                <p className="whitespace-pre-wrap text-sm text-red-900">{ticket.rejectionReason}</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Display attached images if exist */}
@@ -384,12 +490,41 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                         <h4 className="font-bold text-gray-800 border-b pb-2">Comments ({comments.length})</h4>
                         <div className="space-y-4">
                             {comments.map(c => (
-                                <div key={c.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                <div key={c.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-gray-300 transition-colors group">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="font-medium text-sm text-gray-900">{c.authorName}</span>
-                                        <span className="text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</span>
+                                        <div className="flex gap-2 items-center">
+                                            <span className="font-medium text-sm text-gray-900">{c.authorName}</span>
+                                            <span className="text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</span>
+                                            {c.updatedAt && c.updatedAt !== c.createdAt && <span className="text-[10px] text-gray-400 italic">(edited)</span>}
+                                        </div>
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {user.id === c.authorId && (
+                                                <button onClick={() => { setEditingCommentId(c.id); setEditingCommentText(c.text); }} className="text-gray-400 hover:text-blue-500" title="Edit">
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                            {(user.id === c.authorId || user.role === 'ADMIN') && (
+                                                <button onClick={() => handleDeleteComment(c.id)} className="text-gray-400 hover:text-red-500" title="Delete">
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className="text-sm text-gray-700">{c.text}</p>
+                                    {editingCommentId === c.id ? (
+                                        <div className="flex flex-col gap-2 mt-2">
+                                            <textarea 
+                                                value={editingCommentText} 
+                                                onChange={e => setEditingCommentText(e.target.value)} 
+                                                className="w-full text-sm p-2 border rounded outline-none" 
+                                            />
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => setEditingCommentId(null)} className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+                                                <button onClick={() => handleSaveEditComment(c.id)} className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700">Save</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.text}</p>
+                                    )}
                                 </div>
                             ))}
                             {comments.length === 0 && <p className="text-sm text-gray-500 italic">No comments yet.</p>}
