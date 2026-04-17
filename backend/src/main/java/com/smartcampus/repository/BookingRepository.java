@@ -1,5 +1,5 @@
 package com.smartcampus.repository;
-
+//// Database operations for Booking
 import com.smartcampus.model.Booking;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
