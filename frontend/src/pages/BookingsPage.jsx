@@ -4,9 +4,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Check, X as XIcon, Calendar, Clock, Filter, Users, Copy, CheckCheck, Trash2, QrCode, FileText } from 'lucide-react';
 import { BookingForm } from '../components/BookingForm';
+import { ToastContainer } from '../components/Toast';
+import { useToast } from '../components/useToast';
 
 export const BookingsPage = () => {
     const { user } = useAuth();
+    const { toasts, showToast, removeToast } = useToast();
     const [bookings, setBookings] = useState([]);
     const [filteredBookings, setFilteredBookings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -149,7 +152,7 @@ export const BookingsPage = () => {
             setRejectionReason('');
             fetchBookings();
         } catch (error) {
-            alert("Failed to update status");
+            showToast('Failed to update status. Please try again.', 'error');
         }
     };
 
@@ -159,7 +162,7 @@ export const BookingsPage = () => {
 
     const confirmReject = () => {
         if (!rejectionReason.trim()) {
-            alert('Please provide a reason for rejection');
+            showToast('Please provide a reason for rejection.', 'warning');
             return;
         }
         handleStatusUpdate(rejectingBookingId, 'REJECTED', rejectionReason);
@@ -207,11 +210,11 @@ export const BookingsPage = () => {
                 setTimeout(() => setCopiedQR(null), 2000);
             } else {
                 console.error('❌ Fallback copy failed');
-                alert('Failed to copy. Please copy manually from the box above.');
+                showToast('Failed to copy. Please copy manually.', 'warning');
             }
         } catch (err) {
             console.error('❌ Fallback copy error:', err);
-            alert('Failed to copy. Please copy manually from the box above.');
+            showToast('Failed to copy. Please copy manually.', 'warning');
         } finally {
             document.body.removeChild(textArea);
         }
@@ -227,7 +230,7 @@ export const BookingsPage = () => {
             setDeleteConfirm(null);
             fetchBookings();
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to delete booking');
+            showToast(error.response?.data?.error || 'Failed to delete booking.', 'error');
             setDeleteConfirm(null);
         }
     };
@@ -238,7 +241,7 @@ export const BookingsPage = () => {
             setAttendanceList(res.data.attendanceList || []);
             setViewingAttendance(res.data);
         } catch (error) {
-            alert('Failed to fetch attendance data');
+            showToast('Failed to fetch attendance data.', 'error');
         }
     };
 
@@ -253,6 +256,7 @@ export const BookingsPage = () => {
     };
 
     return (
+        <>
         <div className="p-8 w-full max-w-[1400px] mx-auto bg-[#fafafa]/30 min-h-screen">
             <div className="flex justify-between items-start mb-8">
                 <div>
@@ -533,7 +537,10 @@ export const BookingsPage = () => {
             )}
 
             {isFormOpen && (
-                <BookingForm onClose={() => { setIsFormOpen(false); fetchBookings(); }} />
+                <BookingForm
+                    onClose={() => { setIsFormOpen(false); fetchBookings(); }}
+                    showToast={showToast}
+                />
             )}
 
             {/* ── Delete Confirmation Modal ── */}
@@ -646,5 +653,9 @@ export const BookingsPage = () => {
                 </div>
             )}
         </div>
+
+        {/* ── Global Toast Notifications ── */}
+        <ToastContainer toasts={toasts} removeToast={removeToast} />
+        </>
     );
 };
