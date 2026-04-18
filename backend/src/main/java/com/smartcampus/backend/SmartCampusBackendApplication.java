@@ -17,6 +17,12 @@ public class SmartCampusBackendApplication {
 		Dotenv dotenv = Dotenv.configure()
 				.ignoreIfMissing()
 				.load();
+		dotenv.entries().forEach(e -> {
+			System.setProperty(e.getKey(), e.getValue());
+			if ("MONGODB_URI".equals(e.getKey())) {
+				System.setProperty("spring.data.mongodb.uri", e.getValue());
+			}
+		});
 
 		// Build a map of Spring properties from dotenv values.
 		// SpringApplicationBuilder.properties() injects at highest priority,

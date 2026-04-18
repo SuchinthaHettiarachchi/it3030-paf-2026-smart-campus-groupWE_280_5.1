@@ -13,27 +13,32 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
-            // Check if using dev mode (stored in localStorage)
-            const devUser = localStorage.getItem('devUser');
-            if (devUser) {
-                setUser(JSON.parse(devUser));
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenFromUrl = urlParams.get('token');
+            
+            if (tokenFromUrl) {
+                localStorage.setItem('auth_token', tokenFromUrl);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                setUser(null);
                 setLoading(false);
                 return;
             }
 
-            // Otherwise try OAuth authentication
-            const res = await axios.get('/api/auth/me', {
-                withCredentials: true
-            });
+            const res = await axios.get('/api/auth/me');
             
-            // 204 No Content means not authenticated
             if (res.status === 204 || !res.data) {
                 setUser(null);
+                localStorage.removeItem('auth_token');
             } else {
                 setUser(res.data);
             }
         } catch (err) {
-            console.log('No active session');
+            console.log('No active auth token or token expired');
+            localStorage.removeItem('auth_token');
             setUser(null);
         } finally {
             setLoading(false);
@@ -42,44 +47,40 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            // Clear dev mode
-            localStorage.removeItem('devUser');
-            
-            // Try OAuth logout
-            await axios.post('/api/auth/logout', {}, { withCredentials: true });
+            localStorage.removeItem('auth_token');
+            await axios.post('/api/auth/logout');
         } catch (err) {
             console.log('Logout completed');
         } finally {
             setUser(null);
-            window.location.href = '/';
+            window.location.href = '/login';
         }
     };
 
-    const loginAsDev = (role) => {
-        const devUsers = {
-            ADMIN: { id: 'dev-admin-123', name: 'Dev Admin', email: 'admin@dev.local', role: 'ADMIN' },
-            USER: { id: 'dev-user-456', name: 'Dev User', email: 'user@dev.local', role: 'USER' },
-            TECHNICIAN: { id: 'dev-tech-789', name: 'Dev Technician', email: 'tech@dev.local', role: 'TECHNICIAN' }
-        };
-        const selectedUser = devUsers[role];
-        localStorage.setItem('devUser', JSON.stringify(selectedUser));
-        setUser(selectedUser);
-        window.location.href = '/';
+    const signin = async (email, password) => {
+        try {
+            const res = await axios.post('/api/auth/signin', { email, password });
+            localStorage.setItem('auth_token', res.data.token);
+            setUser(res.data.user);
+            return res.data.user;
+        } catch (err) {
+            throw new Error(err.response?.data?.message || 'Sign in failed');
+        }
     };
 
-    const loginWithEmailPassword = async (email, password) => {
+    const signup = async ({ name, email, password, role }) => {
         try {
-            const res = await axios.post('/api/auth/login', { email, password });
-            setUser(res.data);
-            localStorage.setItem('devUser', JSON.stringify(res.data));
-            return res.data;
+            const res = await axios.post('/api/auth/signup', { name, email, password, role });
+            localStorage.setItem('auth_token', res.data.token);
+            setUser(res.data.user);
+            return res.data.user;
         } catch (err) {
-            throw new Error(err.response?.data?.message || 'Login failed');
+            throw new Error(err.response?.data?.message || 'Sign up failed');
         }
     };
 
     return (
-        <AuthContext.Provider value={{ user, setUser, loading, checkAuth, logout, loginAsDev, loginWithEmailPassword }}>
+        <AuthContext.Provider value={{ user, setUser, loading, checkAuth, logout, signin, signup }}>
             {children}
         </AuthContext.Provider>
     );

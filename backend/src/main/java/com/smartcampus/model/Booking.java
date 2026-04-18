@@ -1,5 +1,5 @@
 package com.smartcampus.model;
-
+//// Entity class for Booking
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
