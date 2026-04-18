@@ -50,3 +50,12 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Pass MongoDB Atlas URI as a JVM system property at JVM startup,
+// read from gradle.properties to safely handle special URL characters.
+tasks.named('bootRun') {
+	def mongoUri = project.findProperty('MONGODB_URI') ?: ''
+	if (mongoUri) {
+		jvmArgs "-Dspring.data.mongodb.uri=${mongoUri}"
+	}
+}
