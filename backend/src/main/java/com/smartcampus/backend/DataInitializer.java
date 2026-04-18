@@ -72,43 +72,43 @@ public class DataInitializer implements CommandLineRunner {
 
         // Create sample resources
         Resource lectureHall1 = Resource.builder()
-                .name("Main Auditorium")
+                .name("University Auditorium")
                 .type("LECTURE_HALL")
                 .capacity(200)
                 .location("Building A, Floor 1")
                 .status("ACTIVE")
                 .description("Large auditorium with projector and sound system")
-                .imageUrl("https://images.unsplash.com/photo-1523580494863-6f3031224c94")
+                .imageUrl("https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop")
                 .build();
 
         Resource lectureHall2 = Resource.builder()
-                .name("CS Lecture Hall 101")
+                .name("Lecture Hall 106")
                 .type("LECTURE_HALL")
                 .capacity(50)
                 .location("Building B, Floor 2")
                 .status("ACTIVE")
                 .description("Computer Science department lecture hall")
-                .imageUrl("https://images.unsplash.com/photo-1562774053-701939374585")
+                .imageUrl("https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=800&auto=format&fit=crop")
                 .build();
 
         Resource lab1 = Resource.builder()
-                .name("Computer Lab A")
+                .name("Computer Lab 05")
                 .type("LAB")
                 .capacity(30)
                 .location("Building C, Floor 3")
                 .status("ACTIVE")
                 .description("High-performance computers with latest software")
-                .imageUrl("https://images.unsplash.com/photo-1498050108023-c5249f4df085")
+                .imageUrl("https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop")
                 .build();
 
         Resource lab2 = Resource.builder()
-                .name("Physics Lab")
+                .name("Science Lab (Humanities and Sciences)")
                 .type("LAB")
                 .capacity(25)
                 .location("Building D, Floor 1")
                 .status("MAINTENANCE")
                 .description("Equipment maintenance in progress")
-                .imageUrl("https://images.unsplash.com/photo-1532094349884-543bc11b234d")
+                .imageUrl("https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&auto=format&fit=crop")
                 .build();
 
         Resource equipment1 = Resource.builder()
@@ -118,7 +118,7 @@ public class DataInitializer implements CommandLineRunner {
                 .location("Equipment Room 101")
                 .status("ACTIVE")
                 .description("4K projector available for booking")
-                .imageUrl("https://images.unsplash.com/photo-1517694712202-14dd9538aa97")
+                .imageUrl("https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800&auto=format&fit=crop")
                 .build();
 
         Resource equipment2 = Resource.builder()
@@ -128,7 +128,7 @@ public class DataInitializer implements CommandLineRunner {
                 .location("Equipment Room 102")
                 .status("ACTIVE")
                 .description("Professional camera kit with lenses")
-                .imageUrl("https://images.unsplash.com/photo-1502920917128-1aa500764cbd")
+                .imageUrl("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop")
                 .build();
 
         List<Resource> resources = resourceRepository.saveAll(
