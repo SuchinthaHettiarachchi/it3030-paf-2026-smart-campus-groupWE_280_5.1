@@ -3,10 +3,12 @@ package com.smartcampus.backend;
 import com.smartcampus.model.*;
 import com.smartcampus.repository.*;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -16,21 +18,30 @@ public class DataInitializer implements CommandLineRunner {
     private final BookingRepository bookingRepository;
     private final TicketRepository ticketRepository;
     private final NotificationRepository notificationRepository;
+        private final PasswordEncoder passwordEncoder;
+
+        private static final String DEFAULT_ADMIN_EMAIL = "admin@gmail.com";
+        private static final String DEFAULT_ADMIN_NAME = "System Admin";
+        private static final String DEFAULT_ADMIN_PASSWORD = "admin1234";
 
     public DataInitializer(ResourceRepository resourceRepository,
                           UserRepository userRepository,
                           BookingRepository bookingRepository,
                           TicketRepository ticketRepository,
-                          NotificationRepository notificationRepository) {
+                                                  NotificationRepository notificationRepository,
+                                                  PasswordEncoder passwordEncoder) {
         this.resourceRepository = resourceRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.ticketRepository = ticketRepository;
         this.notificationRepository = notificationRepository;
+                this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) throws Exception {
+                ensureDefaultAdminAccount();
+
         // Only initialize if database is empty (first-time setup only)
         if (userRepository.count() > 0) {
             System.out.println("Database already contains data. Skipping initialization.");
@@ -41,10 +52,11 @@ public class DataInitializer implements CommandLineRunner {
 
         // Create sample users with IDs matching frontend dev login
         User admin = User.builder()
-                .id("dev-admin-123")  // Matches frontend dev login
-                .email("admin@dev.local")
-                .name("Dev Admin")
+                .id("dev-admin-123")
+                .email(DEFAULT_ADMIN_EMAIL)
+                .name(DEFAULT_ADMIN_NAME)
                 .role(Role.ADMIN)
+                .passwordHash(passwordEncoder.encode(DEFAULT_ADMIN_PASSWORD))
                 .build();
         
         User student1 = User.builder()
@@ -254,4 +266,27 @@ public class DataInitializer implements CommandLineRunner {
 
         System.out.println("Database initialization completed successfully!");
     }
+
+        private void ensureDefaultAdminAccount() {
+                Optional<User> existingAdmin = userRepository.findByEmail(DEFAULT_ADMIN_EMAIL);
+
+                if (existingAdmin.isPresent()) {
+                        User admin = existingAdmin.get();
+                        admin.setRole(Role.ADMIN);
+                        admin.setName(DEFAULT_ADMIN_NAME);
+                        admin.setPasswordHash(passwordEncoder.encode(DEFAULT_ADMIN_PASSWORD));
+                        userRepository.save(admin);
+                        System.out.println("Default admin account updated: " + DEFAULT_ADMIN_EMAIL);
+                        return;
+                }
+
+                User admin = User.builder()
+                                .email(DEFAULT_ADMIN_EMAIL)
+                                .name(DEFAULT_ADMIN_NAME)
+                                .role(Role.ADMIN)
+                                .passwordHash(passwordEncoder.encode(DEFAULT_ADMIN_PASSWORD))
+                                .build();
+                userRepository.save(admin);
+                System.out.println("Default admin account created: " + DEFAULT_ADMIN_EMAIL);
+        }
 }

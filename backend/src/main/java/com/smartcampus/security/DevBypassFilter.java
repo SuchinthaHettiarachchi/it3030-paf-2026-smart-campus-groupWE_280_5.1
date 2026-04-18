@@ -1,5 +1,6 @@
 package com.smartcampus.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,9 +23,16 @@ import java.util.List;
 @Component
 public class DevBypassFilter extends OncePerRequestFilter {
 
+    @Value("${app.dev-bypass.enabled:false}")
+    private boolean devBypassEnabled;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        if (!devBypassEnabled) {
+            filterChain.doFilter(request, response);
+            return;
+        }
             
         String devRole = request.getHeader("X-Dev-Role");
         if (devRole != null && SecurityContextHolder.getContext().getAuthentication() == null) {

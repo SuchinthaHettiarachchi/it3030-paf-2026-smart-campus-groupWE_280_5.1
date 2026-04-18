@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from '../api/axios';
-import { UserCircle, ShieldCheck, Wrench } from 'lucide-react';
+import { UserCircle, Wrench } from 'lucide-react';
 
 const RoleSelectionPage = () => {
   const [selectedRole, setSelectedRole] = useState('');
@@ -13,25 +13,28 @@ const RoleSelectionPage = () => {
 
   const roles = [
     {
-      id: 'ADMIN',
-      name: 'Administrator',
-      description: 'Manage resources, bookings, and users',
-      icon: ShieldCheck,
-      color: 'purple'
-    },
-    {
       id: 'USER',
       name: 'User',
       description: 'Book resources and raise tickets',
       icon: UserCircle,
-      color: 'green'
+      colorClass: {
+        border: 'border-emerald-500',
+        bg: 'bg-emerald-50',
+        iconBg: 'bg-emerald-500',
+        text: 'text-emerald-700'
+      }
     },
     {
       id: 'TECHNICIAN',
       name: 'Technician',
       description: 'Handle maintenance tickets',
       icon: Wrench,
-      color: 'green'
+      colorClass: {
+        border: 'border-amber-500',
+        bg: 'bg-amber-50',
+        iconBg: 'bg-amber-500',
+        text: 'text-amber-700'
+      }
     }
   ];
 
@@ -57,14 +60,15 @@ const RoleSelectionPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-slate-100 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome to Smart Campus! 🎓</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome to Smart Campus</h1>
           <p className="text-gray-600">Please select your role to continue</p>
+          <p className="text-xs text-gray-500 mt-2">Admin access is assigned automatically for approved admin emails.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {roles.map((role) => {
             const Icon = role.icon;
             const isSelected = selectedRole === role.id;
@@ -75,17 +79,17 @@ const RoleSelectionPage = () => {
                 onClick={() => setSelectedRole(role.id)}
                 className={`p-6 rounded-xl border-2 transition-all duration-200 ${
                   isSelected
-                    ? `border-${role.color}-500 bg-${role.color}-50 shadow-lg scale-105`
+                    ? `${role.colorClass.border} ${role.colorClass.bg} shadow-lg scale-105`
                     : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
                 }`}
               >
                 <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
-                  isSelected ? `bg-${role.color}-500` : 'bg-gray-100'
+                  isSelected ? role.colorClass.iconBg : 'bg-gray-100'
                 }`}>
                   <Icon className={`w-8 h-8 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
                 </div>
                 <h3 className={`text-xl font-semibold mb-2 ${
-                  isSelected ? `text-${role.color}-700` : 'text-gray-800'
+                  isSelected ? role.colorClass.text : 'text-gray-800'
                 }`}>
                   {role.name}
                 </h3>
@@ -106,7 +110,7 @@ const RoleSelectionPage = () => {
           disabled={!selectedRole || loading}
           className={`w-full py-4 rounded-xl font-semibold text-white transition-all duration-200 ${
             selectedRole && !loading
-              ? 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg hover:shadow-xl'
+              ? 'bg-gradient-to-r from-cyan-600 to-slate-800 hover:from-cyan-700 hover:to-slate-900 shadow-lg hover:shadow-xl'
               : 'bg-gray-300 cursor-not-allowed'
           }`}
         >
