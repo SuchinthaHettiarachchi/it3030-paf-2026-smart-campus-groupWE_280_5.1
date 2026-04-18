@@ -1,5 +1,5 @@
 package com.smartcampus.controller;
-
+//REST endpoints for Booking module
 import com.smartcampus.model.Attendance;
 import com.smartcampus.model.Booking;
 import com.smartcampus.model.User;
