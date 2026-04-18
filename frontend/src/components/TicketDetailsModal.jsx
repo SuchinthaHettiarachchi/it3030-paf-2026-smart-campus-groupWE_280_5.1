@@ -228,28 +228,31 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
     // --- Create Mode Form ---
     if (ticket?.isNew) {
         return (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                        <h2 className="text-xl font-bold">Raise New Issue</h2>
-                        <button onClick={onClose}><X className="w-5 h-5 text-gray-400 hover:text-gray-600" /></button>
+            <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl w-full max-w-lg shadow-[0_20px_60px_rgba(0,0,0,0.1)] animate-in fade-in zoom-in-95 text-gray-800 flex flex-col max-h-[90vh]">
+                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-3xl shrink-0">
+                        <h2 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Raise New Issue</h2>
+                        <button type="button" onClick={onClose} className="p-1 rounded-xl hover:bg-gray-200/50 transition-colors">
+                            <X className="w-5 h-5 text-gray-500 hover:text-gray-900" />
+                        </button>
                     </div>
-                    <form onSubmit={handleCreate} className="p-6 space-y-4">
+                    <form onSubmit={handleCreate} className="flex flex-col flex-grow overflow-hidden">
+                        <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
                         <div>
-                            <label className="block text-sm font-medium mb-1">Title *</label>
+                            <label className="block text-sm font-bold mb-1.5 text-gray-700">Title <span className="text-purple-600">*</span></label>
                             <input 
                                 required 
                                 type="text" 
                                 value={formData.title} 
                                 onChange={e => setFormData({ ...formData, title: e.target.value })} 
-                                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                className="w-full p-2.5 bg-gray-50/50 text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all placeholder-gray-400 shadow-sm hover:border-purple-300"
                                 placeholder="e.g., Projector not working" 
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Select Facility/Equipment (Optional)</label>
+                            <label className="block text-sm font-bold mb-1.5 text-gray-700">Select Facility/Equipment <span className="font-normal text-gray-500">(Optional)</span></label>
                             {loadingResources ? (
-                                <div className="w-full p-2 border rounded-lg text-gray-500 text-sm">
+                                <div className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 text-sm animate-pulse">
                                     Loading facilities...
                                 </div>
                             ) : (
@@ -263,7 +266,7 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                             resourceName: selectedResource ? selectedResource.name : ''
                                         });
                                     }}
-                                    className="w-full p-2 border rounded-lg outline-none"
+                                    className="w-full p-2.5 bg-gray-50/50 text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all shadow-sm hover:border-purple-300"
                                 >
                                     <option value="">General Campus Issue</option>
                                     {resources.map(r => (
@@ -273,20 +276,20 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                             )}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Description *</label>
+                            <label className="block text-sm font-bold mb-1.5 text-gray-700">Description <span className="text-purple-600">*</span></label>
                             <textarea 
                                 required 
                                 rows="3" 
                                 value={formData.description} 
                                 onChange={e => setFormData({ ...formData, description: e.target.value })} 
-                                className="w-full p-2 border rounded-lg outline-none"
+                                className="w-full p-2.5 bg-gray-50/50 text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all placeholder-gray-400 shadow-sm resize-none hover:border-purple-300"
                                 placeholder="Describe the issue in detail..."
                             ></textarea>
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Category</label>
-                                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2 border rounded-lg outline-none">
+                                <label className="block text-sm font-bold mb-1.5 text-gray-700">Category</label>
+                                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2.5 bg-gray-50/50 text-gray-900 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm hover:border-purple-300">
                                     <option value="">General</option>
                                     <option value="ELECTRICAL">Electrical</option>
                                     <option value="PLUMBING">Plumbing</option>
@@ -297,8 +300,8 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Priority</label>
-                                <select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} className="w-full p-2 border rounded-lg outline-none">
+                                <label className="block text-sm font-bold mb-1.5 text-gray-700">Priority</label>
+                                <select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} className="w-full p-2.5 bg-gray-50/50 text-gray-900 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm hover:border-purple-300">
                                     <option value="LOW">Low</option>
                                     <option value="MEDIUM">Medium</option>
                                     <option value="HIGH">High</option>
@@ -306,8 +309,8 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Contact Via</label>
-                                <select value={formData.preferredContact} onChange={e => setFormData({...formData, preferredContact: e.target.value})} className="w-full p-2 border rounded-lg outline-none">
+                                <label className="block text-sm font-bold mb-1.5 text-gray-700">Contact</label>
+                                <select value={formData.preferredContact} onChange={e => setFormData({...formData, preferredContact: e.target.value})} className="w-full p-2.5 bg-gray-50/50 text-gray-900 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm hover:border-purple-300">
                                     <option value="EMAIL">Email</option>
                                     <option value="PHONE">Phone</option>
                                     <option value="IN_PERSON">In Person</option>
@@ -317,8 +320,8 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                         
                         {/* Attachment Upload */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Attach Image (Optional, Max 3)</label>
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-500 transition">
+                            <label className="block text-sm font-bold mb-2 text-gray-700">Attach Image <span className="font-normal text-gray-500">(Optional, Max 3)</span></label>
+                            <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer group">
                                 {filePreviews.length === 0 ? (
                                     <>
                                         <input
@@ -330,23 +333,25 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                             id="file-upload"
                                         />
                                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                                            <Paperclip className="w-8 h-8 text-gray-400 mb-2" />
-                                            <p className="text-sm text-gray-600">Click to upload images</p>
-                                            <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB (Max 3)</p>
+                                            <div className="p-3 bg-white shadow-sm border border-gray-100 rounded-full mb-2 group-hover:scale-110 transition-transform">
+                                                <Paperclip className="w-5 h-5 text-purple-600" />
+                                            </div>
+                                            <p className="text-sm font-bold text-gray-700 group-hover:text-purple-700">Click to upload images</p>
+                                            <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB (Max 3)</p>
                                         </label>
                                     </>
                                 ) : (
                                     <div className="flex flex-col gap-4">
                                         <div className="flex flex-wrap gap-4 justify-center">
                                             {filePreviews.map((preview, idx) => (
-                                                <div key={idx} className="relative group">
-                                                    <img src={preview} alt={`Preview ${idx + 1}`} className="max-h-32 object-cover rounded shadow-sm border border-gray-200" />
+                                                <div key={idx} className="relative group/img">
+                                                    <img src={preview} alt={`Preview ${idx + 1}`} className="h-20 w-20 object-cover rounded-xl border border-gray-200 shadow-md transform group-hover/img:scale-105 transition-all" />
                                                     <button
                                                         type="button"
                                                         onClick={() => removeFile(idx)}
-                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg opacity-0 group-hover/img:opacity-100 transition-opacity"
                                                     >
-                                                        <X className="w-4 h-4" />
+                                                        <X className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
                                             ))}
@@ -361,7 +366,7 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                                     className="hidden"
                                                     id="file-upload-more"
                                                 />
-                                                <label htmlFor="file-upload-more" className="cursor-pointer text-sm text-primary-600 font-medium hover:underline inline-flex items-center gap-1">
+                                                <label htmlFor="file-upload-more" className="cursor-pointer text-sm text-purple-600 font-bold hover:text-purple-700 inline-flex items-center gap-1 bg-white border border-gray-200 shadow-sm px-4 py-2 rounded-xl transition-all hover:shadow-md">
                                                     <Paperclip className="w-4 h-4" /> Add More
                                                 </label>
                                             </div>
@@ -371,17 +376,19 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                             </div>
                         </div>
                         
-                        <div className="flex justify-end gap-3 pt-4">
+                        </div>
+                        
+                        <div className="p-5 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl shrink-0 flex justify-end gap-3">
                             <button 
                                 type="button" 
                                 onClick={onClose}
-                                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition"
+                                className="px-5 py-2.5 text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl font-bold transition-all shadow-sm"
                             >
                                 Cancel
                             </button>
                             <button 
                                 type="submit" 
-                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition"
+                                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 font-bold shadow-[0_5px_15px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.02]"
                             >
                                 Submit Ticket
                             </button>
@@ -394,17 +401,17 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
 
     // --- View Mode Form ---
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[90vh]">
-                <div className="p-6 border-b border-gray-100 flex flex-col gap-4">
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white/95 backdrop-blur-xl border border-white rounded-3xl w-full max-w-2xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] flex flex-col max-h-[90vh] text-gray-800">
+                <div className="p-6 border-b border-gray-100 flex flex-col gap-4 bg-gray-50/50 rounded-t-3xl">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h2 className="text-2xl font-bold mb-1">{ticket.title}</h2>
-                            <p className="text-gray-500 text-sm">Opened by {ticket.creatorName} • {ticket.resourceName}</p>
+                            <h2 className="text-2xl font-extrabold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">{ticket.title}</h2>
+                            <p className="text-gray-500 text-sm">Opened by <span className="font-bold text-gray-800">{ticket.creatorName}</span> • <span className="text-purple-600 font-medium">{ticket.resourceName || 'General Campus'}</span></p>
                         </div>
                         <div className="flex items-center gap-4">
                             {(user.role === 'ADMIN' || user.role === 'TECHNICIAN') && (
-                                <select value={pendingStatus || status} onChange={handleStatusMenuChange} className="text-sm border p-1 rounded font-medium bg-gray-50 outline-none">
+                                <select value={pendingStatus || status} onChange={handleStatusMenuChange} className="text-sm border border-gray-200 p-1.5 rounded-xl font-bold bg-white text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 transition-all shadow-sm hover:border-purple-300">
                                     <option value="OPEN">Open</option>
                                     <option value="IN_PROGRESS">In Progress</option>
                                     <option value="RESOLVED">Resolved</option>
@@ -416,30 +423,32 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                 <select
                                     onChange={(e) => handleAssign(e.target.value)}
                                     value={ticket.assignedTechnicianId || ''}
-                                    className="text-sm border p-1 rounded font-medium bg-purple-50 text-purple-700 outline-none"
+                                    className="text-sm border border-purple-200 p-1.5 rounded-xl font-bold bg-purple-50 text-purple-700 outline-none focus:ring-2 focus:ring-purple-500 transition-all shadow-sm cursor-pointer hover:bg-purple-100"
                                 >
-                                    <option value="" disabled>Assign Tech...</option>
-                                    <option value="dev-tech-789">Campus Technician (dev-tech-789)</option>
+                                    <option value="" disabled className="bg-white">Assign Tech...</option>
+                                    <option value="dev-tech-789" className="bg-white">Campus Technician (dev-tech-789)</option>
                                 </select>
                             )}
-                            <button onClick={onClose}><X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button>
+                            <button onClick={onClose} className="p-1 rounded-xl hover:bg-gray-200/50 transition-colors">
+                                <X className="w-6 h-6 text-gray-400 hover:text-gray-800" />
+                            </button>
                         </div>
                     </div>
                     
                     {(pendingStatus === 'RESOLVED' || pendingStatus === 'REJECTED') && (
-                        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg flex flex-col gap-2 mt-2">
-                            <label className="text-sm font-semibold text-yellow-900">
-                                {pendingStatus === 'RESOLVED' ? 'Resolution Notes' : 'Rejection Reason'}
+                        <div className={`${pendingStatus === 'RESOLVED' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} border p-4 rounded-2xl flex flex-col gap-3 mt-2 animate-in fade-in slide-in-from-top-2 shadow-sm`}>
+                            <label className={`text-sm font-bold ${pendingStatus === 'RESOLVED' ? 'text-green-700' : 'text-red-700'}`}>
+                                {pendingStatus === 'RESOLVED' ? 'Resolution Notes (Required)' : 'Rejection Reason (Required)'}
                             </label>
                             <textarea
                                 value={statusReason}
                                 onChange={e => setStatusReason(e.target.value)}
-                                className="w-full p-2 border rounded outline-none text-sm"
+                                className="w-full p-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl outline-none text-sm placeholder-gray-400 focus:border-gray-300 transition-all resize-none shadow-sm"
                                 placeholder={pendingStatus === 'RESOLVED' ? 'What was done to fix this issue?' : 'Why is this ticket being rejected?'}
                             />
-                            <div className="flex gap-2 justify-end mt-2">
-                                <button onClick={() => setPendingStatus('')} className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">Cancel</button>
-                                <button onClick={() => handleStatusCommit(pendingStatus, statusReason)} className="px-3 py-1 bg-primary-600 text-white text-sm rounded cursor-pointer hover:bg-primary-700 transition">
+                            <div className="flex gap-2 justify-end mt-1">
+                                <button onClick={() => setPendingStatus('')} className="px-4 py-1.5 bg-white border border-gray-200 text-gray-600 font-semibold text-sm rounded-xl hover:bg-gray-50 transition-colors shadow-sm">Cancel</button>
+                                <button onClick={() => handleStatusCommit(pendingStatus, statusReason)} className={`px-5 py-1.5 text-white text-sm font-bold rounded-xl cursor-pointer transition-all shadow-md ${pendingStatus === 'RESOLVED' ? 'bg-green-600 hover:bg-green-500 hover:shadow-green-500/20' : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/20'}`}>
                                     Apply Status
                                 </button>
                             </div>
@@ -447,38 +456,46 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                     )}
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-grow space-y-6">
-                    <div className="bg-blue-50 text-blue-900 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-2">Description</h4>
-                        <p className="whitespace-pre-wrap text-sm">{ticket.description}</p>
+                <div className="p-6 overflow-y-auto flex-grow space-y-6 custom-scrollbar bg-white/50">
+                    <div className="bg-blue-50/80 border border-blue-100 p-5 rounded-3xl relative overflow-hidden shadow-sm">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-400 to-blue-600"></div>
+                        <h4 className="font-extrabold text-blue-900 mb-2">Description</h4>
+                        <p className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-medium">{ticket.description}</p>
+                        
                         {ticket.resolutionNotes && (
-                            <div className="mt-4 pt-4 border-t border-blue-200">
-                                <h4 className="font-semibold mb-1 text-green-700">Resolution Notes</h4>
-                                <p className="whitespace-pre-wrap text-sm text-green-900">{ticket.resolutionNotes}</p>
+                            <div className="mt-5 pt-5 border-t border-blue-200/50">
+                                <h4 className="font-extrabold mb-2 text-green-700 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                                    Resolution Notes
+                                </h4>
+                                <p className="whitespace-pre-wrap text-sm text-green-800 leading-relaxed bg-green-100/50 p-4 rounded-2xl border border-green-200/50 font-medium">{ticket.resolutionNotes}</p>
                             </div>
                         )}
                         {ticket.rejectionReason && (
-                            <div className="mt-4 pt-4 border-t border-blue-200">
-                                <h4 className="font-semibold mb-1 text-red-700">Rejection Reason</h4>
-                                <p className="whitespace-pre-wrap text-sm text-red-900">{ticket.rejectionReason}</p>
+                            <div className="mt-5 pt-5 border-t border-blue-200/50">
+                                <h4 className="font-extrabold mb-2 text-red-700 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                                    Rejection Reason
+                                </h4>
+                                <p className="whitespace-pre-wrap text-sm text-red-800 leading-relaxed bg-red-100/50 p-4 rounded-2xl border border-red-200/50 font-medium">{ticket.rejectionReason}</p>
                             </div>
                         )}
                     </div>
 
                     {/* Display attached images if exist */}
                     {ticket.imageUrls && ticket.imageUrls.length > 0 && (
-                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                            <h4 className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
-                                <Paperclip className="w-4 h-4" />
+                        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
+                            <h4 className="font-extrabold mb-4 text-gray-800 flex items-center gap-2 text-sm">
+                                <Paperclip className="w-4 h-4 text-purple-600" />
                                 Attachments ({ticket.imageUrls.length})
                             </h4>
-                            <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-wrap gap-4">
                                 {ticket.imageUrls.map((url, i) => (
                                     <img
                                         key={i}
                                         src={url}
                                         alt={`Attachment ${i + 1}`}
-                                        className="max-h-40 rounded-lg shadow-sm border border-gray-300 cursor-pointer hover:opacity-90 transition"
+                                        className="max-h-40 rounded-2xl shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
                                         onClick={() => window.open(url, '_blank')}
                                     />
                                 ))}
@@ -487,62 +504,82 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                     )}
 
                     <div className="space-y-4">
-                        <h4 className="font-bold text-gray-800 border-b pb-2">Comments ({comments.length})</h4>
+                        <h4 className="font-extrabold text-gray-800 border-b border-gray-100 pb-3 flex items-center justify-between">
+                            <span>Comments</span>
+                            <span className="text-xs font-bold bg-gray-100 text-gray-500 px-3 py-1 rounded-full">{comments.length}</span>
+                        </h4>
                         <div className="space-y-4">
                             {comments.map(c => (
-                                <div key={c.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-gray-300 transition-colors group">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <div className="flex gap-2 items-center">
-                                            <span className="font-medium text-sm text-gray-900">{c.authorName}</span>
-                                            <span className="text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</span>
-                                            {c.updatedAt && c.updatedAt !== c.createdAt && <span className="text-[10px] text-gray-400 italic">(edited)</span>}
+                                <div key={c.id} className={`p-5 rounded-3xl border shadow-sm ${c.authorId === user.id ? 'bg-purple-50/50 border-purple-100 ml-8' : 'bg-white border-gray-100 mr-8'} hover:shadow-md transition-all group relative`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${c.authorId === user.id ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-gray-500 to-gray-600'}`}>
+                                                {c.authorName.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-sm text-gray-900 block">{c.authorName}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-500 font-medium">{new Date(c.createdAt).toLocaleString()}</span>
+                                                    {c.updatedAt && c.updatedAt !== c.createdAt && <span className="text-[10px] text-gray-400 font-bold italic bg-gray-100 px-1.5 py-0.5 rounded-md">edited</span>}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-4 bg-white/90 backdrop-blur-sm p-1 rounded-xl border border-gray-100 shadow-sm">
                                             {user.id === c.authorId && (
-                                                <button onClick={() => { setEditingCommentId(c.id); setEditingCommentText(c.text); }} className="text-gray-400 hover:text-blue-500" title="Edit">
+                                                <button onClick={() => { setEditingCommentId(c.id); setEditingCommentText(c.text); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                                                     <Edit2 className="w-3.5 h-3.5" />
                                                 </button>
                                             )}
                                             {(user.id === c.authorId || user.role === 'ADMIN') && (
-                                                <button onClick={() => handleDeleteComment(c.id)} className="text-gray-400 hover:text-red-500" title="Delete">
+                                                <button onClick={() => handleDeleteComment(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
                                             )}
                                         </div>
                                     </div>
                                     {editingCommentId === c.id ? (
-                                        <div className="flex flex-col gap-2 mt-2">
+                                        <div className="flex flex-col gap-3 mt-4 ml-11">
                                             <textarea 
                                                 value={editingCommentText} 
                                                 onChange={e => setEditingCommentText(e.target.value)} 
-                                                className="w-full text-sm p-2 border rounded outline-none" 
+                                                className="w-full text-sm p-3 bg-white text-gray-800 border border-purple-300 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 shadow-inner resize-none" 
                                             />
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => setEditingCommentId(null)} className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
-                                                <button onClick={() => handleSaveEditComment(c.id)} className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700">Save</button>
+                                                <button onClick={() => setEditingCommentId(null)} className="text-xs px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                                                <button onClick={() => handleSaveEditComment(c.id)} className="text-xs px-4 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-500 shadow-md shadow-purple-500/20 transition-all">Save Edit</button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.text}</p>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap pl-11 leading-relaxed font-medium">{c.text}</p>
                                     )}
                                 </div>
                             ))}
-                            {comments.length === 0 && <p className="text-sm text-gray-500 italic">No comments yet.</p>}
+                            {comments.length === 0 && (
+                                <div className="py-10 text-center bg-gray-50/50 rounded-3xl border border-gray-200 border-dashed">
+                                    <p className="text-sm text-gray-500 font-medium">No comments yet. Start the conversation!</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-                    <form onSubmit={handleAddComment} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={newComment}
-                            onChange={e => setNewComment(e.target.value)}
-                            placeholder="Add a comment..."
-                            className="flex-grow p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                        <button type="submit" className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center justify-center">
-                            <Send className="w-5 h-5" />
+                <div className="p-4 border-t border-gray-100 bg-white rounded-b-3xl">
+                    <form onSubmit={handleAddComment} className="flex gap-3 items-center bg-gray-50 p-1.5 rounded-full border border-gray-200 shadow-inner">
+                        <div className="flex-grow pl-3 relative">
+                            <input
+                                type="text"
+                                value={newComment}
+                                onChange={e => setNewComment(e.target.value)}
+                                placeholder="Type your message..."
+                                className="w-full py-2 px-2 bg-transparent text-gray-800 outline-none placeholder-gray-400 font-medium"
+                            />
+                        </div>
+                        <button 
+                            type="submit" 
+                            disabled={!newComment.trim()}
+                            className={`p-2.5 rounded-full transition-all flex items-center justify-center ${newComment.trim() ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md hover:scale-105' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        >
+                            <Send className="w-4 h-4 ml-0.5" />
                         </button>
                     </form>
                 </div>
