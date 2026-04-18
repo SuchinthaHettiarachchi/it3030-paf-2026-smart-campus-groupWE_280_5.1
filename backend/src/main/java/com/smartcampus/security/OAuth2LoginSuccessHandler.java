@@ -1,6 +1,5 @@
 package com.smartcampus.security;
 
-import com.smartcampus.model.Role;
 import com.smartcampus.model.User;
 import com.smartcampus.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
