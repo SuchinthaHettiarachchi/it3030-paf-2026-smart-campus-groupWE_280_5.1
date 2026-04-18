@@ -33,27 +33,27 @@ public class DevBypassFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-            
+
         String devRole = request.getHeader("X-Dev-Role");
         if (devRole != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             String roleName = devRole.toUpperCase();
             String email = "dev-" + roleName.toLowerCase() + "@smartcampus.local";
-            
+
             // Create Mock OAuth2 User Context
             Map<String, Object> attributes = Map.of(
-                "sub", "dev-123",
-                "name", "Dev " + roleName,
-                "email", email,
-                "picture", ""
-            );
-            
-            List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
+                    "sub", "dev-123",
+                    "name", "Dev " + roleName,
+                    "email", email,
+                    "picture", "");
+
+            List<GrantedAuthority> authorities = Collections
+                    .singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
             OAuth2User mockUser = new DefaultOAuth2User(authorities, attributes, "email");
-            
+
             Authentication auth = new OAuth2AuthenticationToken(mockUser, authorities, "google");
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
-        
+
         filterChain.doFilter(request, response);
     }
 }

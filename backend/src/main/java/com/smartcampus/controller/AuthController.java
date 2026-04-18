@@ -27,9 +27,9 @@ public class AuthController {
     private final Set<String> adminEmails;
 
     public AuthController(UserRepository userRepository,
-                          PasswordEncoder passwordEncoder,
-                          JwtUtil jwtUtil,
-                          @Value("${app.admin.emails:admin@smartcampus.edu}") String adminEmailsConfig) {
+            PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil,
+            @Value("${app.admin.emails:admin@smartcampus.edu}") String adminEmailsConfig) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
@@ -46,10 +46,10 @@ public class AuthController {
         if (principal == null) {
             return ResponseEntity.status(204).build();
         }
-        
-        String email = principal.getAttribute("email");        
+
+        String email = principal.getAttribute("email");
         Optional<User> user = userRepository.findByEmail(email);
-        
+
         return user.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(404).body((User) null));
     }
@@ -105,7 +105,8 @@ public class AuthController {
     }
 
     @PostMapping("/select-role")
-    public ResponseEntity<?> selectRole(@AuthenticationPrincipal OAuth2User principal, @RequestBody Map<String, String> request) {
+    public ResponseEntity<?> selectRole(@AuthenticationPrincipal OAuth2User principal,
+            @RequestBody Map<String, String> request) {
         if (principal == null) {
             return ResponseEntity.status(401).body("Not authenticated");
         }
@@ -176,8 +177,11 @@ public class AuthController {
         return value == null || value.trim().isEmpty();
     }
 
-    public record SignupRequest(String name, String email, String password, String role) {}
-    public record SigninRequest(String email, String password) {}
+    public record SignupRequest(String name, String email, String password, String role) {
+    }
+
+    public record SigninRequest(String email, String password) {
+    }
 
     public record AuthResponse(String token, User user) {
         static AuthResponse from(User user, String token) {

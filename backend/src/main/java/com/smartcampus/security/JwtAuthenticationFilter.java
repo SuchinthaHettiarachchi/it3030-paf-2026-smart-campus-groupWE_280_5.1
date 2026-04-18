@@ -21,47 +21,48 @@ import java.util.Optional;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+  private final JwtUtil jwtUtil;
+  private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
-        this.jwtUtil = jwtUtil;
-        this.userRepository = userRepository;
+  public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
+    this.jwtUtil = jwtUtil;
+    this.userRepository = userRepository;
+  }
+
+  @Override
+  protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
+
+    String authHeader = request.getHeader("Authorization");
+    String token = null;
+    String email = null;
+
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+      if (jwtUtil.validateToken(token)) {
+        email = jwtUtil.getEmailFromToken(token);
+      }
     }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        
-        String authHeader = request.getHeader("Authorization");
-        String token = null;
-        String email = null;
+    if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+      Optional<User> userOptional = userRepository.findByEmail(email);
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            if (jwtUtil.validateToken(token)) {
-                email = jwtUtil.getEmailFromToken(token);
-            }
-        }
+      if (userOptional.isPresent()) {
+        User user = userOptional.get();
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Optional<User> userOptional = userRepository.findByEmail(email);
-            
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
-                
-                // For compatibility with your controllers using @AuthenticationPrincipal OAuth2User
-                OAuth2User oauth2User = new DefaultOAuth2User(
-                        Collections.emptyList(), 
-                        Map.of("email", user.getEmail(), "sub", user.getGoogleId() == null ? "" : user.getGoogleId()),
-                        "email");
-                        
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        oauth2User, null, null); 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
-        }
+        // For compatibility with your controllers using @AuthenticationPrincipal
+        // OAuth2User
+        OAuth2User oauth2User = new DefaultOAuth2User(
+            Collections.emptyList(),
+            Map.of("email", user.getEmail(), "sub", user.getGoogleId() == null ? "" : user.getGoogleId()),
+            "email");
 
-        filterChain.doFilter(request, response);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+            oauth2User, null, null);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+      }
     }
+
+    filterChain.doFilter(request, response);
+  }
 }

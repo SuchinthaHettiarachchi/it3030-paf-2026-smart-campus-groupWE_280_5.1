@@ -22,7 +22,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final Set<String> adminEmails;
 
     public CustomOAuth2UserService(UserRepository userRepository,
-                                   @Value("${app.admin.emails:admin@smartcampus.edu}") String adminEmailsConfig) {
+            @Value("${app.admin.emails:admin@smartcampus.edu}") String adminEmailsConfig) {
         this.userRepository = userRepository;
         this.adminEmails = new HashSet<>();
         Arrays.stream(adminEmailsConfig.split(","))
