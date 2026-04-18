@@ -1,5 +1,5 @@
 package com.smartcampus.service;
-
+//// Service logic and validation for bookings
 import com.smartcampus.model.Booking;
 import com.smartcampus.model.Role;
 import com.smartcampus.model.User;

@@ -169,7 +169,8 @@ public class TicketController {
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
         String status = body.get("status");
-        return ticketService.updateTicketStatus(id, status)
+        String rejectionReason = body.get("rejectionReason");
+        return ticketService.updateTicketStatus(id, status, rejectionReason)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -177,7 +178,7 @@ public class TicketController {
     @PutMapping("/{id}/resolve")
     public ResponseEntity<?> resolveTicket(@PathVariable String id, @RequestBody Map<String, String> body) {
         String resolutionNotes = body.get("resolutionNotes");
-        return ticketService.updateTicketStatus(id, "RESOLVED").map(ticket -> {
+        return ticketService.updateTicketStatus(id, "RESOLVED", null).map(ticket -> {
             ticket.setResolutionNotes(resolutionNotes);
             Ticket saved = ticketService.saveTicket(ticket); // persist notes
             return ResponseEntity.ok(saved);

@@ -57,7 +57,7 @@ function App() {
                   <nav className="flex gap-4">
                     <Link to="/resources" className="text-gray-600 hover:text-primary-600 font-medium">Facilities</Link>
                     <Link to="/bookings" className="text-gray-600 hover:text-primary-600 font-medium">Bookings</Link>
-                    <Link to="/tickets" className="text-gray-600 hover:text-primary-600 font-medium">Maintenance</Link>
+                    <Link to="/tickets" className="text-gray-600 hover:text-primary-600 font-medium">Tickets</Link>
                     <Link to="/notifications" className="text-gray-600 hover:text-primary-600 font-medium relative">
                       <Bell className="w-5 h-5" />
                       {unreadCount > 0 && (

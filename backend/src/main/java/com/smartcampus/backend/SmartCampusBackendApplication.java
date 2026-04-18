@@ -15,9 +15,12 @@ public class SmartCampusBackendApplication {
 		Dotenv dotenv = Dotenv.configure()
 				.ignoreIfMissing()
 				.load();
-		dotenv.entries().forEach(e ->
-				System.setProperty(e.getKey(), e.getValue())
-		);
+		dotenv.entries().forEach(e -> {
+			System.setProperty(e.getKey(), e.getValue());
+			if ("MONGODB_URI".equals(e.getKey())) {
+				System.setProperty("spring.data.mongodb.uri", e.getValue());
+			}
+		});
 
 		SpringApplication.run(SmartCampusBackendApplication.class, args);
 	}

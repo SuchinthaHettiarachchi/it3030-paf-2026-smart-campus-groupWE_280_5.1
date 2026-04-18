@@ -114,9 +114,12 @@ public class TicketService {
         return imageUrl;
     }
 
-    public Optional<Ticket> updateTicketStatus(String id, String status) {
+    public Optional<Ticket> updateTicketStatus(String id, String status, String rejectionReason) {
         return ticketRepository.findById(id).map(existing -> {
             existing.setStatus(status);
+            if (rejectionReason != null) {
+                existing.setRejectionReason(rejectionReason);
+            }
             existing.setUpdatedAt(LocalDateTime.now());
             Ticket saved = ticketRepository.save(existing);
             
@@ -167,6 +170,12 @@ public class TicketService {
     public Optional<Ticket> assignTechnician(String id, String technicianId) {
         return ticketRepository.findById(id).map(existing -> {
             existing.setAssignedTechnicianId(technicianId);
+            
+            // Set technician name
+            userRepository.findById(technicianId).ifPresent(tech -> {
+                existing.setAssignedTechnicianName(tech.getName());
+            });
+            
             existing.setStatus("IN_PROGRESS");
             existing.setUpdatedAt(LocalDateTime.now());
             
@@ -229,7 +238,7 @@ public class TicketService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
         // Ownership rule: only author can edit (not even ADMIN — edits must be authentic)
-        if (!comment.getAuthorId().equals(authorId) && !"ADMIN".equals(userRole)) {
+        if (!comment.getAuthorId().equals(authorId)) {
             throw new RuntimeException("Not authorized to edit this comment");
         }
         comment.setText(newText);
