@@ -7,6 +7,7 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
     const { user } = useAuth();
 
     // Create mode state
+    const [isEditingTicket, setIsEditingTicket] = useState(false);
     const [formData, setFormData] = useState({ 
         title: '', 
         description: '', 
@@ -35,23 +36,35 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
     const [editingCommentText, setEditingCommentText] = useState('');
 
     useEffect(() => {
-        if (!ticket?.isNew && ticket?.id) {
+        if (!ticket?.isNew && ticket?.id && !isEditingTicket) {
             fetchComments();
-        } else if (ticket?.isNew) {
+        } 
+        
+        if (ticket?.isNew || isEditingTicket) {
             // Fetch resources for the dropdown
             setLoadingResources(true);
             axios.get('/api/resources', { withCredentials: true })
                 .then(res => {
-                    console.log('Resources loaded for ticket:', res.data);
                     setResources(res.data);
                 })
                 .catch(err => {
                     console.error('Failed to fetch resources', err);
-                    alert('Failed to load facilities. Please refresh the page.');
                 })
                 .finally(() => setLoadingResources(false));
+                
+            if (isEditingTicket) {
+                setFormData({
+                    title: ticket.title,
+                    description: ticket.description,
+                    resourceName: ticket.resourceName || '',
+                    resourceId: ticket.resourceId || '',
+                    category: ticket.category || '',
+                    priority: ticket.priority || 'MEDIUM',
+                    preferredContact: ticket.preferredContact || 'EMAIL'
+                });
+            }
         }
-    }, [ticket]);
+    }, [ticket, isEditingTicket]);
 
     const fetchComments = async () => {
         try {
@@ -118,6 +131,31 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
             console.error('Error response:', err.response);
             const errorMsg = err.response?.data?.message || err.response?.data || 'Failed to create ticket. Please try again.';
             alert('❌ ' + (typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg)));
+        }
+    };
+
+    const handleEditTicket = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.put(`/api/tickets/${ticket.id}`, formData, { withCredentials: true });
+            alert('✅ Ticket updated successfully!');
+            setIsEditingTicket(false);
+            onClose(); 
+        } catch (err) {
+            const errorMsg = err.response?.data?.error || 'Failed to update ticket';
+            alert('❌ ' + errorMsg);
+        }
+    };
+
+    const handleDeleteTicket = async () => {
+        if (!window.confirm("Are you sure you want to delete this ticket? This cannot be undone.")) return;
+        try {
+            await axios.delete(`/api/tickets/${ticket.id}`, { withCredentials: true });
+            alert('✅ Ticket deleted successfully!');
+            onClose();
+        } catch (err) {
+            const errorMsg = err.response?.data?.error || 'Failed to delete ticket';
+            alert('❌ ' + errorMsg);
         }
     };
 
@@ -226,17 +264,19 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
     };
 
     // --- Create Mode Form ---
-    if (ticket?.isNew) {
+    if (ticket?.isNew || isEditingTicket) {
         return (
             <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
                 <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl w-full max-w-lg shadow-[0_20px_60px_rgba(0,0,0,0.1)] animate-in fade-in zoom-in-95 text-gray-800 flex flex-col max-h-[90vh]">
                     <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-3xl shrink-0">
-                        <h2 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Raise New Issue</h2>
-                        <button type="button" onClick={onClose} className="p-1 rounded-xl hover:bg-gray-200/50 transition-colors">
+                        <h2 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                            {isEditingTicket ? 'Edit Issue' : 'Raise New Issue'}
+                        </h2>
+                        <button type="button" onClick={() => isEditingTicket ? setIsEditingTicket(false) : onClose()} className="p-1 rounded-xl hover:bg-gray-200/50 transition-colors">
                             <X className="w-5 h-5 text-gray-500 hover:text-gray-900" />
                         </button>
                     </div>
-                    <form onSubmit={handleCreate} className="flex flex-col flex-grow overflow-hidden">
+                    <form onSubmit={isEditingTicket ? handleEditTicket : handleCreate} className="flex flex-col flex-grow overflow-hidden">
                         <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
                         <div>
                             <label className="block text-sm font-bold mb-1.5 text-gray-700">Title <span className="text-purple-600">*</span></label>
@@ -319,69 +359,71 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                         </div>
                         
                         {/* Attachment Upload */}
-                        <div>
-                            <label className="block text-sm font-bold mb-2 text-gray-700">Attach Image <span className="font-normal text-gray-500">(Optional, Max 3)</span></label>
-                            <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer group">
-                                {filePreviews.length === 0 ? (
-                                    <>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept="image/*"
-                                            onChange={handleFileChange}
-                                            className="hidden"
-                                            id="file-upload"
-                                        />
-                                        <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                                            <div className="p-3 bg-white shadow-sm border border-gray-100 rounded-full mb-2 group-hover:scale-110 transition-transform">
-                                                <Paperclip className="w-5 h-5 text-purple-600" />
-                                            </div>
-                                            <p className="text-sm font-bold text-gray-700 group-hover:text-purple-700">Click to upload images</p>
-                                            <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB (Max 3)</p>
-                                        </label>
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
-                                        <div className="flex flex-wrap gap-4 justify-center">
-                                            {filePreviews.map((preview, idx) => (
-                                                <div key={idx} className="relative group/img">
-                                                    <img src={preview} alt={`Preview ${idx + 1}`} className="h-20 w-20 object-cover rounded-xl border border-gray-200 shadow-md transform group-hover/img:scale-105 transition-all" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeFile(idx)}
-                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg opacity-0 group-hover/img:opacity-100 transition-opacity"
-                                                    >
-                                                        <X className="w-3.5 h-3.5" />
-                                                    </button>
+                        {!isEditingTicket && (
+                            <div>
+                                <label className="block text-sm font-bold mb-2 text-gray-700">Attach Image <span className="font-normal text-gray-500">(Optional, Max 3)</span></label>
+                                <div className="bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer group">
+                                    {filePreviews.length === 0 ? (
+                                        <>
+                                            <input
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                                id="file-upload"
+                                            />
+                                            <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
+                                                <div className="p-3 bg-white shadow-sm border border-gray-100 rounded-full mb-2 group-hover:scale-110 transition-transform">
+                                                    <Paperclip className="w-5 h-5 text-purple-600" />
                                                 </div>
-                                            ))}
-                                        </div>
-                                        {filePreviews.length < 3 && (
-                                            <div>
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    onChange={handleFileChange}
-                                                    className="hidden"
-                                                    id="file-upload-more"
-                                                />
-                                                <label htmlFor="file-upload-more" className="cursor-pointer text-sm text-purple-600 font-bold hover:text-purple-700 inline-flex items-center gap-1 bg-white border border-gray-200 shadow-sm px-4 py-2 rounded-xl transition-all hover:shadow-md">
-                                                    <Paperclip className="w-4 h-4" /> Add More
-                                                </label>
+                                                <p className="text-sm font-bold text-gray-700 group-hover:text-purple-700">Click to upload images</p>
+                                                <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB (Max 3)</p>
+                                            </label>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex flex-wrap gap-4 justify-center">
+                                                {filePreviews.map((preview, idx) => (
+                                                    <div key={idx} className="relative group/img">
+                                                        <img src={preview} alt={`Preview ${idx + 1}`} className="h-20 w-20 object-cover rounded-xl border border-gray-200 shadow-md transform group-hover/img:scale-105 transition-all" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeFile(idx)}
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg opacity-0 group-hover/img:opacity-100 transition-opacity"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        )}
-                                    </div>
-                                )}
+                                            {filePreviews.length < 3 && (
+                                                <div>
+                                                    <input
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        onChange={handleFileChange}
+                                                        className="hidden"
+                                                        id="file-upload-more"
+                                                    />
+                                                    <label htmlFor="file-upload-more" className="cursor-pointer text-sm text-purple-600 font-bold hover:text-purple-700 inline-flex items-center gap-1 bg-white border border-gray-200 shadow-sm px-4 py-2 rounded-xl transition-all hover:shadow-md">
+                                                        <Paperclip className="w-4 h-4" /> Add More
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                         
                         </div>
                         
                         <div className="p-5 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl shrink-0 flex justify-end gap-3">
                             <button 
                                 type="button" 
-                                onClick={onClose}
+                                onClick={() => isEditingTicket ? setIsEditingTicket(false) : onClose()}
                                 className="px-5 py-2.5 text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl font-bold transition-all shadow-sm"
                             >
                                 Cancel
@@ -390,7 +432,7 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                 type="submit" 
                                 className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 font-bold shadow-[0_5px_15px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.02]"
                             >
-                                Submit Ticket
+                                {isEditingTicket ? 'Save Changes' : 'Submit Ticket'}
                             </button>
                         </div>
                     </form>
@@ -429,6 +471,16 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                                     <option value="dev-tech-789" className="bg-white">Campus Technician (dev-tech-789)</option>
                                 </select>
                             )}
+                            {user.id === ticket.creatorId && status === 'OPEN' && (
+                                <>
+                                    <button onClick={() => setIsEditingTicket(true)} className="p-1.5 rounded-xl hover:bg-blue-50 text-blue-500 transition-colors" title="Edit Ticket">
+                                        <Edit2 className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={handleDeleteTicket} className="p-1.5 rounded-xl hover:bg-red-50 text-red-500 transition-colors" title="Delete Ticket">
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </>
+                            )}
                             <button onClick={onClose} className="p-1 rounded-xl hover:bg-gray-200/50 transition-colors">
                                 <X className="w-6 h-6 text-gray-400 hover:text-gray-800" />
                             </button>
@@ -457,6 +509,21 @@ export const TicketDetailsModal = ({ ticket, onClose }) => {
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-grow space-y-6 custom-scrollbar bg-white/50">
+                    {user.role === 'ADMIN' && (ticket.edited || ticket.isEdited) && (
+                        <div className="bg-orange-50 border border-orange-200 p-5 rounded-3xl shadow-sm mb-4">
+                            <h4 className="font-extrabold text-orange-800 flex items-center gap-2 mb-3">
+                                <Edit2 className="w-4 h-4" /> User Edited This Ticket
+                            </h4>
+                            <p className="text-sm text-orange-700 mb-2"><strong>Original Title:</strong> {ticket.originalTitle}</p>
+                            <div className="text-sm text-orange-700">
+                                <strong>Original Description:</strong>
+                                <p className="mt-1 whitespace-pre-wrap bg-orange-100/50 p-3 rounded-xl border border-orange-200/50 font-medium">
+                                    {ticket.originalDescription}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
                     <div className="bg-blue-50/80 border border-blue-100 p-5 rounded-3xl relative overflow-hidden shadow-sm">
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-400 to-blue-600"></div>
                         <h4 className="font-extrabold text-blue-900 mb-2">Description</h4>

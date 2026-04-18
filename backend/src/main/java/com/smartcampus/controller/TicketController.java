@@ -193,6 +193,32 @@ public class TicketController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> editTicket(@PathVariable String id, @RequestBody Ticket updatedTicket, @AuthenticationPrincipal OAuth2User principal) {
+        User user = getAuthenticatedUser(principal);
+        if (user == null) return ResponseEntity.status(401).build();
+
+        try {
+            Ticket edited = ticketService.editTicket(id, user.getId(), updatedTicket);
+            return ResponseEntity.ok(edited);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTicket(@PathVariable String id, @AuthenticationPrincipal OAuth2User principal) {
+        User user = getAuthenticatedUser(principal);
+        if (user == null) return ResponseEntity.status(401).build();
+
+        try {
+            ticketService.deleteTicket(id, user.getId());
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // --- Comments Endpoints ---
 
     @GetMapping("/{id}/comments")
