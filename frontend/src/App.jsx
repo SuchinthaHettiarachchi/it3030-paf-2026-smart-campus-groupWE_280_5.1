@@ -1,18 +1,19 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { LoginButton } from './components/LoginButton';
+import { LoginPage } from './pages/LoginPage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { BookingsPage } from './pages/BookingsPage';
 import { TicketsPage } from './pages/TicketsPage';
 import { QRVerificationPage } from './pages/QRVerificationPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import RoleSelectionPage from './pages/RoleSelectionPage';
-import { Bell, GraduationCap, ShieldCheck, UserCircle, Wrench } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import axios from './api/axios';
 
 function App() {
-  const { user, loading, loginAsDev } = useAuth();
+  const { user, loading } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -56,7 +57,7 @@ function App() {
                   <nav className="flex gap-4">
                     <Link to="/resources" className="text-gray-600 hover:text-primary-600 font-medium">Facilities</Link>
                     <Link to="/bookings" className="text-gray-600 hover:text-primary-600 font-medium">Bookings</Link>
-                    <Link to="/tickets" className="text-gray-600 hover:text-primary-600 font-medium">Maintenance</Link>
+                    <Link to="/tickets" className="text-gray-600 hover:text-primary-600 font-medium">Tickets</Link>
                     <Link to="/notifications" className="text-gray-600 hover:text-primary-600 font-medium relative">
                       <Bell className="w-5 h-5" />
                       {unreadCount > 0 && (
@@ -81,61 +82,11 @@ function App() {
             {/* Public routes */}
             <Route path="/verify-qr" element={<QRVerificationPage />} />
             <Route path="/select-role" element={<RoleSelectionPage />} />
+            <Route path="/login" element={<LoginPage />} />
             
             {/* Protected routes - require login */}
             {!user ? (
-              <Route path="*" element={
-                <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
-                  <div className="max-w-2xl w-full">
-                    <div className="text-center mb-8">
-                      <div className="inline-flex items-center justify-center w-20 h-20 bg-purple-600 rounded-full mb-6 shadow-lg">
-                        <GraduationCap className="w-12 h-12 text-white" />
-                      </div>
-                      <h1 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">SmartCampus</h1>
-                      <p className="text-gray-600 text-lg mb-2">Manage facilities, book resources, and track maintenance</p>
-                      <p className="text-gray-500">Select a role to continue</p>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-2xl p-8">
-                      <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">Quick Login</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button
-                          onClick={() => loginAsDev('ADMIN')}
-                          className="flex flex-col items-center gap-3 p-6 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105"
-                        >
-                          <ShieldCheck className="w-10 h-10" />
-                          <div className="text-center">
-                            <div className="font-bold text-lg">Administrator</div>
-                            <div className="text-xs opacity-90 mt-1">Full access</div>
-                          </div>
-                        </button>
-                        
-                        <button
-                          onClick={() => loginAsDev('USER')}
-                          className="flex flex-col items-center gap-3 p-6 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105"
-                        >
-                          <UserCircle className="w-10 h-10" />
-                          <div className="text-center">
-                            <div className="font-bold text-lg">User</div>
-                            <div className="text-xs opacity-90 mt-1">Book & view</div>
-                          </div>
-                        </button>
-                        
-                        <button
-                          onClick={() => loginAsDev('TECHNICIAN')}
-                          className="flex flex-col items-center gap-3 p-6 bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105"
-                        >
-                          <Wrench className="w-10 h-10" />
-                          <div className="text-center">
-                            <div className="font-bold text-lg">Technician</div>
-                            <div className="text-xs opacity-90 mt-1">Maintenance</div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              } />
+              <Route path="*" element={<LoginPage />} />
             ) : (
               <>
                 <Route path="/" element={<ResourcesPage />} />

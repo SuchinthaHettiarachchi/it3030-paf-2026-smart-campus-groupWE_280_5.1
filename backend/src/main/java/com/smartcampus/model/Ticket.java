@@ -45,6 +45,10 @@ public class Ticket {
     private String assignedTechnicianName;
     private String resolutionNotes;
     
+    private boolean isEdited;
+    private String originalTitle;
+    private String originalDescription;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

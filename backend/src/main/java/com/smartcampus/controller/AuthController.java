@@ -3,39 +3,110 @@ package com.smartcampus.controller;
 import com.smartcampus.model.Role;
 import com.smartcampus.model.User;
 import com.smartcampus.repository.UserRepository;
+import com.smartcampus.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final Set<String> adminEmails;
 
-    public AuthController(UserRepository userRepository) {
+    public AuthController(UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil,
+            @Value("${app.admin.emails:admin@smartcampus.edu}") String adminEmailsConfig) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.adminEmails = new HashSet<>();
+        Arrays.stream(adminEmailsConfig.split(","))
+                .map(String::trim)
+                .filter(email -> !email.isBlank())
+                .map(String::toLowerCase)
+                .forEach(this.adminEmails::add);
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal OAuth2User principal) {
         if (principal == null) {
-            return ResponseEntity.status(204).build(); // Return 204 No Content when not authenticated
+            return ResponseEntity.status(204).build();
         }
-        
-        String email = principal.getAttribute("email");        
+
+        String email = principal.getAttribute("email");
         Optional<User> user = userRepository.findByEmail(email);
-        
+
         return user.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(404).body((User) null));
     }
 
+    @PostMapping("/signup")
+    public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
+        if (isBlank(request.email()) || isBlank(request.password()) || isBlank(request.name())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Name, email and password are required"));
+        }
+
+        String normalizedEmail = normalizeEmail(request.email());
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
+            return ResponseEntity.status(409).body(Map.of("message", "An account with this email already exists"));
+        }
+
+        User newUser = User.builder()
+                .email(normalizedEmail)
+                .name(request.name().trim())
+                .role(resolveInitialRole(normalizedEmail, request.role()))
+                .passwordHash(passwordEncoder.encode(request.password()))
+                .build();
+
+        User saved = userRepository.save(newUser);
+        String token = jwtUtil.generateToken(saved);
+        return ResponseEntity.ok(AuthResponse.from(saved, token));
+    }
+
+    @PostMapping("/signin")
+    public ResponseEntity<?> signin(@RequestBody SigninRequest request) {
+        if (isBlank(request.email()) || isBlank(request.password())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email and password are required"));
+        }
+
+        String normalizedEmail = normalizeEmail(request.email());
+        Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(401).body(Map.of("message", "Invalid email or password"));
+        }
+
+        User user = userOpt.get();
+        if (isBlank(user.getPasswordHash()) || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            return ResponseEntity.status(401).body(Map.of("message", "Invalid email or password"));
+        }
+
+        // Enforce admin access only to configured admin emails.
+        if (user.getRole() == Role.ADMIN && !isAdminEmail(normalizedEmail)) {
+            user.setRole(Role.USER);
+            user = userRepository.save(user);
+        }
+
+        String token = jwtUtil.generateToken(user);
+        return ResponseEntity.ok(AuthResponse.from(user, token));
+    }
+
     @PostMapping("/select-role")
-    public ResponseEntity<?> selectRole(@AuthenticationPrincipal OAuth2User principal, @RequestBody Map<String, String> request) {
+    public ResponseEntity<?> selectRole(@AuthenticationPrincipal OAuth2User principal,
+            @RequestBody Map<String, String> request) {
         if (principal == null) {
             return ResponseEntity.status(401).body("Not authenticated");
         }
@@ -52,6 +123,10 @@ public class AuthController {
             role = Role.valueOf(roleName.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid role");
+        }
+
+        if (role == Role.ADMIN && !isAdminEmail(email)) {
+            return ResponseEntity.status(403).body("Admin role is restricted to approved admin emails");
         }
 
         Optional<User> userOpt = userRepository.findByEmail(email);
@@ -75,6 +150,43 @@ public class AuthController {
         }
     }
 
-    // NOTE: Password-based login removed. Authentication is handled via Google OAuth2.
-    // Use /oauth2/authorization/google to sign in.
+    private Role resolveInitialRole(String email, String requestedRole) {
+        if (isAdminEmail(email)) {
+            return Role.ADMIN;
+        }
+        if (requestedRole == null || requestedRole.isBlank()) {
+            return Role.USER;
+        }
+        try {
+            Role role = Role.valueOf(requestedRole.trim().toUpperCase());
+            return role == Role.ADMIN ? Role.USER : role;
+        } catch (IllegalArgumentException ex) {
+            return Role.USER;
+        }
+    }
+
+    private boolean isAdminEmail(String email) {
+        return adminEmails.contains(normalizeEmail(email));
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    public record SignupRequest(String name, String email, String password, String role) {
+    }
+
+    public record SigninRequest(String email, String password) {
+    }
+
+    public record AuthResponse(String token, User user) {
+        static AuthResponse from(User user, String token) {
+            return new AuthResponse(token, user);
+        }
+    }
+
 }

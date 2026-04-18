@@ -193,6 +193,53 @@ public class TicketService {
         });
     }
 
+    public Ticket editTicket(String id, String userId, Ticket updatedTicket) {
+        return ticketRepository.findById(id).map(existing -> {
+            // Only creator can edit
+            if (!existing.getCreatorId().equals(userId)) {
+                throw new RuntimeException("Not authorized to edit this ticket");
+            }
+            // Only OPEN tickets can be edited
+            if (!"OPEN".equals(existing.getStatus())) {
+                throw new RuntimeException("Only OPEN tickets can be edited");
+            }
+            
+            if (!existing.isEdited()) {
+                existing.setOriginalTitle(existing.getTitle());
+                existing.setOriginalDescription(existing.getDescription());
+                existing.setEdited(true);
+            }
+            
+            existing.setTitle(updatedTicket.getTitle());
+            existing.setDescription(updatedTicket.getDescription());
+            existing.setCategory(updatedTicket.getCategory());
+            existing.setPriority(updatedTicket.getPriority());
+            existing.setPreferredContact(updatedTicket.getPreferredContact());
+            if (updatedTicket.getResourceId() != null) {
+                 existing.setResourceId(updatedTicket.getResourceId());
+                 existing.setResourceName(updatedTicket.getResourceName());
+            }
+            
+            existing.setUpdatedAt(LocalDateTime.now());
+            return ticketRepository.save(existing);
+        }).orElseThrow(() -> new RuntimeException("Ticket not found"));
+    }
+
+    public void deleteTicket(String id, String userId) {
+        ticketRepository.findById(id).ifPresent(existing -> {
+            // Only creator can delete
+            if (!existing.getCreatorId().equals(userId)) {
+                throw new RuntimeException("Not authorized to delete this ticket");
+            }
+            // Only OPEN tickets can be deleted
+            if (!"OPEN".equals(existing.getStatus())) {
+                throw new RuntimeException("Only OPEN tickets can be deleted");
+            }
+            
+            ticketRepository.deleteById(id);
+        });
+    }
+
     // --- Comments Logic ---
     
     public List<Comment> getTicketComments(String ticketId) {

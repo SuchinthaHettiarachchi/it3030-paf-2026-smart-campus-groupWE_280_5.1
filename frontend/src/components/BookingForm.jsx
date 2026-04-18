@@ -3,7 +3,7 @@ import axios from '../api/axios';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export const BookingForm = ({ onClose }) => {
+export const BookingForm = ({ onClose, showToast }) => {
     const { user } = useAuth();
     const [resources, setResources] = useState([]);
     const [formData, setFormData] = useState({
@@ -38,7 +38,7 @@ export const BookingForm = ({ onClose }) => {
             })
             .catch(err => {
                 console.error('Error loading resources:', err);
-                alert('Failed to load facilities. Please refresh the page.');
+                showToast?.('Failed to load facilities. Please refresh the page.', 'error');
             })
             .finally(() => setLoadingResources(false));
     }, []);
@@ -59,7 +59,7 @@ export const BookingForm = ({ onClose }) => {
             onClose();
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.error || 'Failed to create booking. There might be a conflict.');
+            showToast?.(err.response?.data?.error || 'Failed to create booking. There might be a conflict.', 'error');
         } finally {
             setLoading(false);
         }

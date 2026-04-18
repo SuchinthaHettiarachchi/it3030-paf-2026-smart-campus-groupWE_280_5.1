@@ -24,17 +24,10 @@ axiosInstance.interceptors.request.use(
             config.headers['Content-Type'] = 'application/json';
         }
         
-        // Add dev role header if user is logged in via dev mode
-        const devUser = localStorage.getItem('devUser');
-        if (devUser) {
-            try {
-                const user = JSON.parse(devUser);
-                if (user.role) {
-                    config.headers['X-Dev-Role'] = user.role;
-                }
-            } catch (err) {
-                console.error('Failed to parse dev user:', err);
-            }
+        // Add Authentication Header if JWT token exists
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
         }
         
         console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
